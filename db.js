@@ -1,7 +1,12 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = new Database(path.join(__dirname, 'svara.db'));
+// Если задан DB_PATH (например, путь к постоянному диску на хостинге вроде
+// /data/svara.db) — используем его. Иначе, для локального запуска —
+// обычный файл рядом с кодом.
+const dbPath = process.env.DB_PATH || path.join(__dirname, 'svara.db');
+
+const db = new Database(dbPath);
 db.pragma('journal_mode = WAL');
 
 db.exec(`
