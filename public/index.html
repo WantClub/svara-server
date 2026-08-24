@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>СВАРА — казино-клуб</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<style>
+  :root{
+    --felt-1:#0F3B2C; --felt-2:#0A2A20; --wood:#3B2417;
+    --gold:#D4AF37; --gold-dim:#8a742a; --ivory:#F3EFE3;
+    --card-bg:#FBF7EE; --red:#C0453B; --green:#4CAF7D; --muted:#9FB3A8;
+    --panel:#0D2A20; --panel-line:#1E4A38;
+    --font-display:'Cinzel',serif; --font-body:'Manrope',sans-serif; --font-mono:'Space Mono',monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0; background:#070F0C; color:var(--ivory); font-family:var(--font-body); -webkit-font-smoothing:antialiased;}
+  .wrap{min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:20px 14px 40px;}
+  .brand{font-family:var(--font-display); font-weight:700; font-size:26px; letter-spacing:0.14em; color:var(--gold); text-shadow:0 0 18px rgba(212,175,55,0.25); margin-bottom:4px; text-align:center;}
+  .brand .sub{display:block; font-family:var(--font-body); font-size:11px; letter-spacing:0.08em; color:var(--muted); font-weight:500; margin-top:4px;}
+  .topbar{width:100%; max-width:640px; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
+  .user-chip{font-family:var(--font-mono); font-size:12px; background:var(--panel); border:1px solid var(--panel-line); padding:5px 10px; border-radius:6px; display:flex; align-items:center; gap:8px;}
+  .user-chip b{color:var(--gold);}
+  .linklike{font-size:12px; color:var(--muted); cursor:pointer; text-decoration:underline;}
+
+  .card-panel{background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:20px; margin-bottom:14px; width:100%;}
+  .card-panel h3{font-family:var(--font-display); font-size:15px; letter-spacing:0.06em; color:var(--gold); margin:0 0 4px;}
+  .card-panel p.hint{font-size:12.5px; color:var(--muted); margin:0 0 14px; line-height:1.5;}
+  label{display:block; font-size:11px; text-transform:uppercase; letter-spacing:0.08em; color:var(--muted); margin-bottom:5px; margin-top:12px;}
+  label:first-of-type{margin-top:0;}
+  input[type=text], input[type=password], input[type=number]{
+    width:100%; background:#0A1F17; border:1px solid var(--panel-line); border-radius:7px;
+    padding:10px 12px; color:var(--ivory); font-family:var(--font-mono); font-size:14px;
+  }
+  input:focus{outline:none; border-color:var(--gold-dim);}
+  .btn{width:100%; margin-top:16px; background:var(--gold); color:#241C05; border:none; border-radius:7px; padding:12px; font-family:var(--font-display); font-weight:700; font-size:14px; letter-spacing:0.06em; cursor:pointer;}
+  .btn:hover{background:#e2c04d;}
+  .btn:disabled{background:#3a3325; color:#77705a; cursor:not-allowed;}
+  .btn.secondary{background:transparent; border:1px solid var(--gold-dim); color:var(--gold);}
+  .btn.secondary:hover{background:rgba(212,175,55,0.08);}
+  .btn.small{width:auto; margin-top:0; padding:7px 12px; font-size:12px;}
+  .row2{display:flex; gap:10px;}
+  .row2 > div{flex:1;}
+  .err{color:#ff8a80; font-size:12px; margin-top:8px; min-height:16px;}
+  .tabbar{display:flex; gap:4px; margin-bottom:14px; border-bottom:1px solid var(--panel-line); width:100%; max-width:420px;}
+  .tabbtn{font-family:var(--font-display); font-size:13px; letter-spacing:0.04em; padding:8px 4px; margin-right:18px; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent;}
+  .tabbtn.active{color:var(--gold); border-bottom-color:var(--gold);}
+  .limited{width:100%; max-width:420px;} .wide{width:100%; max-width:960px;}
+  .flip-row{display:flex; gap:2px;}
+  .flip-digit{width:18px; height:26px; background:#0A1F17; border:1px solid var(--panel-line); border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:14px; color:var(--gold);}
+  .dash-balance{display:flex; align-items:center; gap:10px; margin:6px 0 4px;}
+  .dash-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+  .dash-actions .btn{width:auto; flex:1; min-width:140px; margin-top:0;}
+  .open-rooms-list{margin-top:10px;}
+  .open-room-row{display:flex; justify-content:space-between; align-items:center; background:#0A1F17; border:1px solid var(--panel-line); border-radius:7px; padding:9px 12px; margin-bottom:7px; font-size:13px;}
+  .open-room-row .meta{color:var(--muted); font-size:11.5px;}
+
+  .admin-table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  .admin-table th{text-align:left; color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; padding:8px 8px; border-bottom:1px solid var(--panel-line);}
+  .admin-table td{padding:8px 8px; border-bottom:1px solid rgba(30,74,56,0.5); vertical-align:middle;}
+  .pill{font-family:var(--font-mono); font-size:10.5px; padding:2px 7px; border-radius:10px;}
+  .pill.admin{background:rgba(212,175,55,0.18); color:var(--gold);}
+  .pill.banned{background:rgba(192,69,59,0.18); color:#ff9d94;}
+  .pill.active{background:rgba(76,175,125,0.15); color:var(--green);}
+  .admin-actions{display:flex; gap:6px; flex-wrap:wrap;}
+  .admin-actions button{font-family:var(--font-mono); font-size:11px; padding:5px 8px; border-radius:5px; border:1px solid var(--panel-line); background:#0A1F17; color:var(--ivory); cursor:pointer;}
+  .admin-actions button:hover{border-color:var(--gold-dim);}
+  .admin-actions button.ban{color:#ff9d94; border-color:rgba(192,69,59,0.4);}
+  .admin-actions button.adm{color:var(--gold); border-color:rgba(212,175,55,0.4);}
+  .stat-row{display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;}
+  .stat-box{background:#0A1F17; border:1px solid var(--panel-line); border-radius:8px; padding:10px 16px; min-width:120px;}
+  .stat-box .n{font-family:var(--font-mono); font-size:20px; color:var(--gold); font-weight:700;}
+  .stat-box .l{font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.06em;}
+  .search-row{margin-bottom:12px;}
+
+  .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px;}
+  .modal-box{background:var(--panel); border:1px solid var(--gold-dim); border-radius:12px; padding:22px; max-width:360px; width:100%;}
+  .modal-box h4{font-family:var(--font-display); color:var(--gold); margin:0 0 10px; font-size:15px;}
+
+  .top-bar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; width:100%; max-width:960px;}
+  .room-tag{font-family:var(--font-mono); font-size:12px; color:var(--muted); background:var(--panel); border:1px solid var(--panel-line); padding:5px 10px; border-radius:6px;}
+  .room-tag b{color:var(--gold); letter-spacing:0.08em;}
+  .felt{position:relative; background:radial-gradient(ellipse at center, var(--felt-1) 0%, var(--felt-2) 75%); border:10px solid var(--wood); outline:2px solid var(--gold-dim); outline-offset:-6px; border-radius:180px / 90px; min-height:420px; padding:20px; width:100%; max-width:960px;}
+  @media(max-width:700px){ .felt{border-radius:28px; min-height:auto; padding:16px 12px 90px;} }
+  .pot-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:2;}
+  .pot-label{font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);}
+  .pot-amt{font-family:var(--font-mono); font-weight:700; font-size:26px; color:var(--gold); text-shadow:0 0 12px rgba(212,175,55,0.35);}
+  .pot-bet{font-size:11px; color:var(--ivory); margin-top:4px;}
+  .phase-tag{display:inline-block; margin-top:6px; font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(212,175,55,0.15); color:var(--gold);}
+  .seats{position:relative; display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; z-index:2;}
+  @media(max-width:700px){ .seats{grid-template-columns:1fr 1fr;} }
+  .seat{background:rgba(7,20,15,0.55); border:1px solid rgba(212,175,55,0.18); border-radius:10px; padding:10px; min-height:118px; display:flex; flex-direction:column; justify-content:space-between;}
+  .seat.empty{align-items:center; justify-content:center; color:var(--muted); font-size:12px; border-style:dashed;}
+  .seat.me{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset;}
+  .seat.turn{border-color:var(--green); box-shadow:0 0 14px rgba(76,175,125,0.35);}
+  .seat.folded{opacity:0.45;}
+  .seat-head{display:flex; justify-content:space-between; align-items:baseline; gap:6px;}
+  .seat-name{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .seat-chips{font-family:var(--font-mono); font-size:12px; color:var(--gold); white-space:nowrap;}
+  .seat-status{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:2px;}
+  .seat-status.folded-txt{color:var(--red);}
+  .seat-status.turn-txt{color:var(--green);}
+  .hand-cards{display:flex; gap:4px; margin-top:8px;}
+  .mini-card{width:26px; height:36px; background:var(--card-bg); border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:11px; color:#222; box-shadow:0 1px 3px rgba(0,0,0,0.4);}
+  .mini-card.red{color:var(--red);}
+  .mini-card.back{background:repeating-linear-gradient(45deg, #6b1f1f, #6b1f1f 4px, #4a1414 4px, #4a1414 8px); border:1px solid var(--gold-dim);}
+  .my-hand-bar{margin-top:16px; background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:14px 16px; width:100%; max-width:960px;}
+  .my-hand-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;}
+  .my-hand-title{font-family:var(--font-display); font-size:13px; letter-spacing:0.05em; color:var(--gold);}
+  .combo-tag{font-family:var(--font-mono); font-size:11px; color:var(--ivory); background:rgba(212,175,55,0.12); padding:2px 8px; border-radius:10px;}
+  .big-cards{display:flex; gap:8px;}
+  .card{width:52px; height:72px; background:var(--card-bg); border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; box-shadow:0 3px 8px rgba(0,0,0,0.45);}
+  .card .r{font-size:17px; color:#222;} .card .s{font-size:15px; margin-top:2px;}
+  .card.red .r, .card.red .s{color:var(--red);}
+  .actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
+  .actions button{flex:1; min-width:110px; padding:12px; border-radius:8px; border:none; font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.04em; cursor:pointer;}
+  .act-call{background:var(--green); color:#0a1f13;} .act-raise{background:var(--gold); color:#241C05;}
+  .act-fold{background:transparent; border:1px solid var(--red) !important; color:#ff9d94;}
+  .wait-note{font-size:12.5px; color:var(--muted); padding:8px 0;}
+  .host-panel{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;}
+  .host-panel .btn{width:auto; flex:1; margin-top:0;}
+  .log{margin-top:14px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:10px 14px; max-height:130px; overflow-y:auto; font-family:var(--font-mono); font-size:11.5px; color:var(--muted); line-height:1.7; width:100%; max-width:960px;}
+  .showdown-banner{background:rgba(76,175,125,0.12); border:1px solid var(--green); border-radius:10px; padding:12px 14px; margin-bottom:12px; font-size:13.5px; width:100%; max-width:960px;}
+  .showdown-banner b{color:var(--green);}
+
+  .spectate-row{display:flex; justify-content:space-between; align-items:center; background:#0A1F17; border:1px solid var(--panel-line); border-radius:7px; padding:9px 12px; margin-bottom:7px; font-size:13px;}
+  .spectate-hands{margin-top:12px; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:10px;}
+  .spectate-seat{background:#0A1F17; border:1px solid var(--panel-line); border-radius:8px; padding:10px;}
+  .spectate-seat .nm{font-weight:700; font-size:13px; margin-bottom:4px;}
+  .spectate-seat .cards{display:flex; gap:4px; margin-top:6px;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar" id="topbar" style="display:none;">
+    <div class="brand" style="font-size:16px; text-align:left; margin:0;">С В А Р А</div>
+    <div id="topbarRight" style="display:flex; align-items:center; gap:10px;"></div>
+  </div>
+
+  <!-- AUTH -->
+  <div id="authView" class="limited">
+    <div class="brand">С В А Р А<span class="sub">клуб для игры на фишки — вход только по аккаунту</span></div>
+    <div class="tabbar">
+      <div class="tabbtn active" data-authtab="login">Вход</div>
+      <div class="tabbtn" data-authtab="register">Регистрация</div>
+    </div>
+    <div class="card-panel" id="loginPane">
+      <h3>Вход в клуб</h3>
+      <label>Логин</label><input type="text" id="loginUser" maxlength="20">
+      <label>Пароль</label><input type="password" id="loginPass">
+      <button class="btn" id="loginBtn">Войти</button>
+      <div class="err" id="loginErr"></div>
+    </div>
+    <div class="card-panel" id="registerPane" style="display:none;">
+      <h3>Регистрация</h3>
+      <p class="hint">Первый зарегистрированный аккаунт на сайте автоматически становится администратором клуба.</p>
+      <label>Логин</label><input type="text" id="regUser" maxlength="20" placeholder="латиница/цифры, без пробелов">
+      <label>Пароль</label><input type="password" id="regPass">
+      <p class="hint" style="margin:6px 0 0;">Минимум 6 символов.</p>
+      <button class="btn secondary" id="regBtn">Создать аккаунт</button>
+      <div class="err" id="regErr"></div>
+    </div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dashView" class="limited" style="display:none;">
+    <div class="card-panel">
+      <h3>Ваш кошелёк</h3>
+      <div class="dash-balance"><div class="flip-row" id="dashBalanceDigits"></div><span style="color:var(--muted); font-size:12px;">фишек</span></div>
+      <p class="hint" style="margin-top:10px;">Пополнение и списание фишек делает только администратор клуба вручную.</p>
+    </div>
+    <div class="card-panel">
+      <h3>Играть</h3>
+      <div class="dash-actions">
+        <button class="btn" id="createTableBtn">Создать стол</button>
+        <button class="btn secondary" id="refreshRoomsBtn">Обновить список</button>
+      </div>
+      <div class="open-rooms-list" id="openRoomsList"></div>
+      <label style="margin-top:16px;">Или войти по коду</label>
+      <input type="text" id="joinCodeInput" maxlength="6" placeholder="Код стола" style="text-transform:uppercase;">
+      <button class="btn secondary" id="joinByCodeBtn">Присоединиться</button>
+      <div class="err" id="dashErr"></div>
+    </div>
+  </div>
+
+  <!-- ADMIN -->
+  <div id="adminView" class="wide" style="display:none;">
+    <div class="card-panel">
+      <h3>Игроки клуба</h3>
+      <div class="stat-row" id="adminStats"></div>
+      <input type="text" id="adminSearch" placeholder="Поиск по логину…" class="search-row" style="width:100%; max-width:280px;">
+      <div style="overflow-x:auto;">
+        <table class="admin-table" id="adminTable">
+          <thead><tr><th>Логин</th><th>Баланс</th><th>Статус</th><th>Регистрация</th><th>Действия</th></tr></thead>
+          <tbody id="adminTbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card-panel">
+      <h3>Активные столы — наблюдение</h3>
+      <p class="hint">Открытые карты всех игроков за выбранным столом в реальном времени.</p>
+      <button class="btn secondary" id="refreshAdminTablesBtn" style="max-width:220px;">Обновить список столов</button>
+      <div id="adminTablesList" style="margin-top:12px;"></div>
+      <div id="spectatePanel"></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <div class="top-bar" id="tableTop" style="display:none;">
+    <div class="room-tag">Стол <b id="roomCodeTag"></b></div>
+    <div class="linklike" id="leaveBtn">← встать из-за стола</div>
+  </div>
+  <div id="showdownBanner"></div>
+  <div class="felt" id="feltEl" style="display:none;">
+    <div class="seats" id="seatsGrid"></div>
+    <div class="pot-center">
+      <div class="pot-label">Банк</div>
+      <div class="pot-amt" id="potAmt">0</div>
+      <div class="pot-bet" id="betAmt"></div>
+      <div class="phase-tag" id="phaseTag"></div>
+    </div>
+  </div>
+  <div class="my-hand-bar" id="myHandBar" style="display:none;">
+    <div class="my-hand-top">
+      <div class="my-hand-title">Ваши карты</div>
+      <div class="combo-tag" id="comboTag" style="display:none;"></div>
+    </div>
+    <div class="big-cards" id="myCards"></div>
+    <div id="actionZone"></div>
+  </div>
+  <div class="log" id="logBox" style="display:none;"></div>
+</div>
+
+<div id="modalRoot"></div>
+
+<script>
+const API = ''; // тот же домен, что и сайт
+
+// Ссылка на Telegram админа для пополнения/вопросов по кассе.
+// Когда определишься с юзернеймом — впиши сюда вида 'https://t.me/твой_юзернейм'.
+const CASHIER_TELEGRAM_URL = '';
+let token = localStorage.getItem('svara_token') || null;
+let me = null; // {username, chips, isAdmin}
+let socket = null;
+let roomCode = "";
+
+function showOnly(ids){
+  ['authView','dashView','adminView','tableTop','feltEl','myHandBar','logBox','topbar'].forEach(id=>{
+    document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
+  });
+}
+
+/* ===================== API HELPERS ===================== */
+async function api(path, method, body){
+  const res = await fetch(API + path, {
+    method: method || 'GET',
+    headers: Object.assign({'Content-Type':'application/json'}, token ? {Authorization:'Bearer '+token} : {}),
+    body: body ? JSON.stringify(body) : undefined
+  });
+  const data = await res.json().catch(()=> ({}));
+  if(!res.ok) throw new Error(data.error || ('Ошибка ' + res.status));
+  return data;
+}
+
+/* ===================== AUTH UI ===================== */
+document.querySelectorAll('[data-authtab]').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-authtab]').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    const tab = t.dataset.authtab;
+    document.getElementById('loginPane').style.display = tab==='login' ? '' : 'none';
+    document.getElementById('registerPane').style.display = tab==='register' ? '' : 'none';
+  });
+});
+
+document.getElementById('regBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('regErr'); errEl.textContent = "";
+  const uname = document.getElementById('regUser').value.trim();
+  const pass = document.getElementById('regPass').value;
+  if(!uname || !pass){ errEl.textContent = "Заполните логин и пароль."; return; }
+  try{
+    const data = await api('/api/register', 'POST', {username: uname, password: pass});
+    token = data.token; localStorage.setItem('svara_token', token);
+    me = data.user;
+    await afterLogin();
+  }catch(e){ errEl.textContent = e.message; }
+});
+
+document.getElementById('loginBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('loginErr'); errEl.textContent = "";
+  const uname = document.getElementById('loginUser').value.trim();
+  const pass = document.getElementById('loginPass').value;
+  if(!uname || !pass){ errEl.textContent = "Заполните логин и пароль."; return; }
+  try{
+    const data = await api('/api/login', 'POST', {username: uname, password: pass});
+    token = data.token; localStorage.setItem('svara_token', token);
+    me = data.user;
+    await afterLogin();
+  }catch(e){ errEl.textContent = e.message; }
+});
+
+function logout(){
+  localStorage.removeItem('svara_token');
+  token = null; me = null; roomCode = "";
+  if(socket){ socket.disconnect(); socket = null; }
+  showOnly(['authView']);
+}
+
+async function afterLogin(){
+  connectSocket();
+  enterDashboard();
+}
+
+function connectSocket(){
+  if(socket) socket.disconnect();
+  socket = io(window.location.origin, { auth: { token } });
+  socket.on('table:state', (st) => render(st));
+  socket.on('lobby:rooms', (list) => renderOpenRooms(list));
+  socket.on('admin:tableState', (st) => renderSpectateHands(st));
+}
+
+/* ===================== TOPBAR ===================== */
+function renderTopbar(){
+  const right = document.getElementById('topbarRight');
+  right.innerHTML = `
+    <span class="user-chip"><b>${me.username}</b>${me.isAdmin?' · админ':''}</span>
+    <button class="btn small" id="tbCashier" style="margin-top:0;">Касса</button>
+    <span class="linklike" id="tbDash">кошелёк</span>
+    ${me.isAdmin?'<span class="linklike" id="tbAdmin">админка</span>':''}
+    <span class="linklike" id="tbLogout">выйти</span>
+  `;
+  document.getElementById('tbDash').addEventListener('click', enterDashboard);
+  if(me.isAdmin) document.getElementById('tbAdmin').addEventListener('click', enterAdmin);
+  document.getElementById('tbLogout').addEventListener('click', logout);
+  document.getElementById('tbCashier').addEventListener('click', ()=>{
+    if(CASHIER_TELEGRAM_URL){
+      window.open(CASHIER_TELEGRAM_URL, '_blank');
+    } else {
+      showModal(`
+        <h4>Касса</h4>
+        <p class="hint">Ссылка на Telegram-администратора ещё не подключена. Как только владелец клуба её добавит, эта кнопка будет сразу открывать чат с ним.</p>
+        <button class="btn secondary" id="mCashierClose">Понятно</button>
+      `);
+      document.getElementById('mCashierClose').addEventListener('click', closeModal);
+    }
+  });
+}
+
+/* ===================== DASHBOARD ===================== */
+async function enterDashboard(){
+  try{
+    const data = await api('/api/me', 'GET');
+    me = data.user;
+  }catch(e){ logout(); return; }
+  showOnly(['topbar','dashView']);
+  renderTopbar();
+  renderDashBalance();
+  if(socket) socket.emit('lobby:join');
+}
+function renderDashBalance(){
+  const balEl = document.getElementById('dashBalanceDigits');
+  balEl.innerHTML = '';
+  String(me.chips).split('').forEach(ch=>{
+    const d = document.createElement('div'); d.className = 'flip-digit'; d.textContent = ch; balEl.appendChild(d);
+  });
+}
+function renderOpenRooms(list){
+  const el = document.getElementById('openRoomsList');
+  if(!list.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px; margin-top:8px;">Открытых столов пока нет — создайте свой.</div>'; return; }
+  el.innerHTML = list.map(r => `
+    <div class="open-room-row">
+      <div>Стол <b style="color:var(--gold); font-family:var(--font-mono);">${r.code}</b>
+        <div class="meta">хост: ${r.hostName} · игроков: ${r.playerCount}/6 · анте ${r.betUnit}</div>
+      </div>
+      <button class="btn small secondary" data-joincode="${r.code}">Сесть</button>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-joincode]').forEach(b => b.addEventListener('click', ()=> promptBuyInAndJoin(b.dataset.joincode)));
+}
+document.getElementById('refreshRoomsBtn').addEventListener('click', ()=> socket.emit('lobby:join'));
+document.getElementById('joinByCodeBtn').addEventListener('click', ()=>{
+  const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
+  const errEl = document.getElementById('dashErr'); errEl.textContent = "";
+  if(!code){ errEl.textContent = "Введите код стола."; return; }
+  promptBuyInAndJoin(code);
+});
+
+document.getElementById('createTableBtn').addEventListener('click', ()=>{
+  showModal(`
+    <h4>Новый стол</h4>
+    <label>Ставка/анте</label><input type="number" id="mBetUnit" value="20" min="5" step="5">
+    <label>Ваш бай-ин</label><input type="number" id="mBuyIn" value="200" min="20" step="10">
+    <div class="err" id="mErr"></div>
+    <button class="btn" id="mConfirm">Создать и сесть</button>
+    <button class="btn secondary" id="mCancel">Отмена</button>
+  `);
+  document.getElementById('mCancel').addEventListener('click', closeModal);
+  document.getElementById('mConfirm').addEventListener('click', ()=>{
+    const betUnit = parseInt(document.getElementById('mBetUnit').value) || 20;
+    const buyIn = parseInt(document.getElementById('mBuyIn').value) || 200;
+    const mErr = document.getElementById('mErr');
+    socket.emit('table:create', {betUnit, buyIn}, (res)=>{
+      if(!res.ok){ mErr.textContent = res.error; return; }
+      closeModal(); roomCode = res.code; enterTable();
+      me.chips -= buyIn; // оптимистично, точная сумма подтянется при следующем /api/me
+    });
+  });
+});
+
+function promptBuyInAndJoin(code){
+  const errEl = document.getElementById('dashErr');
+  showModal(`
+    <h4>Сесть за стол ${code}</h4>
+    <label>Ваш бай-ин</label><input type="number" id="mBuyIn2" value="200" min="10" step="10">
+    <div class="err" id="mErr2"></div>
+    <button class="btn" id="mConfirm2">Сесть за стол</button>
+    <button class="btn secondary" id="mCancel2">Отмена</button>
+  `);
+  document.getElementById('mCancel2').addEventListener('click', closeModal);
+  document.getElementById('mConfirm2').addEventListener('click', ()=>{
+    const buyIn = parseInt(document.getElementById('mBuyIn2').value) || 100;
+    const mErr = document.getElementById('mErr2');
+    socket.emit('table:join', {code, buyIn}, (res)=>{
+      if(!res.ok){ mErr.textContent = res.error; return; }
+      closeModal(); roomCode = res.code; enterTable();
+    });
+  });
+}
+
+/* ===================== MODAL ===================== */
+function showModal(html){ document.getElementById('modalRoot').innerHTML = `<div class="modal-bg"><div class="modal-box">${html}</div></div>`; }
+function closeModal(){ document.getElementById('modalRoot').innerHTML = ''; }
+
+/* ===================== ADMIN ===================== */
+async function enterAdmin(){
+  showOnly(['topbar','adminView']);
+  renderTopbar();
+  await renderAdminUsers();
+  refreshAdminTables();
+}
+async function renderAdminUsers(filter){
+  let list;
+  try{ list = (await api('/api/admin/users','GET')).users; }catch(e){ return; }
+  const totalChips = list.reduce((a,u)=>a+u.chips,0);
+  document.getElementById('adminStats').innerHTML = `
+    <div class="stat-box"><div class="n">${list.length}</div><div class="l">игроков</div></div>
+    <div class="stat-box"><div class="n">${totalChips}</div><div class="l">фишек в обороте</div></div>
+    <div class="stat-box"><div class="n">${list.filter(u=>u.banned).length}</div><div class="l">забанено</div></div>
+  `;
+  const q = (filter||'').toLowerCase();
+  const rows = list.filter(u=>!q || u.username.toLowerCase().includes(q));
+  document.getElementById('adminTbody').innerHTML = rows.map(u => `
+    <tr>
+      <td>${u.username}</td>
+      <td style="font-family:var(--font-mono); color:var(--gold);">${u.chips}</td>
+      <td>${u.isAdmin?'<span class="pill admin">админ</span>':''}${u.banned?'<span class="pill banned">бан</span>':'<span class="pill active">активен</span>'}</td>
+      <td style="color:var(--muted); font-size:11.5px;">${new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
+      <td><div class="admin-actions">
+        <button data-act="add" data-u="${u.username}">+ фишки</button>
+        <button data-act="sub" data-u="${u.username}">− фишки</button>
+        <button class="ban" data-act="ban" data-u="${u.username}">${u.banned?'разбан':'бан'}</button>
+        <button class="adm" data-act="adm" data-u="${u.username}">${u.isAdmin?'снять админа':'сделать админом'}</button>
+      </div></td>
+    </tr>
+  `).join('');
+  document.getElementById('adminTbody').querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=> handleAdminAction(btn.dataset.act, btn.dataset.u));
+  });
+}
+document.getElementById('adminSearch').addEventListener('input', (e)=> renderAdminUsers(e.target.value));
+
+function handleAdminAction(act, uname){
+  if(act === 'add' || act === 'sub'){
+    showModal(`
+      <h4>${act==='add'?'Пополнить':'Списать'} фишки: ${uname}</h4>
+      <label>Сумма</label><input type="number" id="mAmt" value="100" min="1" step="10">
+      <div class="err" id="mAmtErr"></div>
+      <button class="btn" id="mAmtConfirm">Подтвердить</button>
+      <button class="btn secondary" id="mAmtCancel">Отмена</button>
+    `);
+    document.getElementById('mAmtCancel').addEventListener('click', closeModal);
+    document.getElementById('mAmtConfirm').addEventListener('click', async ()=>{
+      const amt = parseInt(document.getElementById('mAmt').value) || 0;
+      if(amt <= 0){ document.getElementById('mAmtErr').textContent = "Введите положительное число."; return; }
+      try{
+        await api('/api/admin/adjust', 'POST', {username: uname, amount: act==='add'?amt:-amt});
+        closeModal();
+        renderAdminUsers(document.getElementById('adminSearch').value);
+      }catch(e){ document.getElementById('mAmtErr').textContent = e.message; }
+    });
+  } else if(act === 'ban'){
+    api('/api/admin/ban', 'POST', {username: uname}).then(()=> renderAdminUsers(document.getElementById('adminSearch').value));
+  } else if(act === 'adm'){
+    api('/api/admin/promote', 'POST', {username: uname}).then(()=> renderAdminUsers(document.getElementById('adminSearch').value));
+  }
+}
+
+function refreshAdminTables(){
+  socket.emit('admin:listTables', (res)=>{
+    const el = document.getElementById('adminTablesList');
+    if(!res.ok){ el.innerHTML = `<div class="err">${res.error}</div>`; return; }
+    if(!res.tables.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Активных столов сейчас нет.</div>'; return; }
+    el.innerHTML = res.tables.map(t => `
+      <div class="spectate-row">
+        <div>Стол <b style="color:var(--gold); font-family:var(--font-mono);">${t.code}</b>
+          <span style="color:var(--muted); font-size:11.5px;"> · хост ${t.hostName} · ${t.playerCount}/6 · ${t.phase}</span>
+        </div>
+        <button class="btn small secondary" data-spec="${t.code}">Смотреть карты</button>
+      </div>
+    `).join('');
+    el.querySelectorAll('[data-spec]').forEach(b => b.addEventListener('click', ()=>{
+      socket.emit('admin:spectate', {code: b.dataset.spec}, (r)=>{
+        if(!r.ok) alert(r.error);
+      });
+    }));
+  });
+}
+document.getElementById('refreshAdminTablesBtn').addEventListener('click', refreshAdminTables);
+
+function suitClass(s){ return (s==='♥'||s==='♦') ? 'red' : ''; }
+
+function renderSpectateHands(st){
+  const panel = document.getElementById('spectatePanel');
+  const seatsHtml = st.seats.map(s => {
+    if(!s) return '';
+    const cardsHtml = (s.hand && s.hand.length)
+      ? `<div class="cards">${s.hand.map(c=>`<div class="mini-card ${suitClass(c.s)}">${c.r}${c.s}</div>`).join('')}</div>`
+      : `<div style="color:var(--muted); font-size:11px; margin-top:6px;">карт нет</div>`;
+    return `<div class="spectate-seat"><div class="nm">${s.username} ${s.folded?'(пас)':''}</div><div style="color:var(--muted); font-size:11px;">фишки: ${s.chips}</div>${cardsHtml}</div>`;
+  }).join('');
+  panel.innerHTML = `
+    <h3 style="margin-top:18px;">Стол ${st.code} — банк ${st.pot}, фаза: ${st.phase}</h3>
+    <div class="spectate-hands">${seatsHtml}</div>
+  `;
+}
+
+/* ===================== ИГРОВОЙ СТОЛ ===================== */
+function enterTable(){
+  showOnly(['tableTop','feltEl','myHandBar','logBox']);
+  document.getElementById('roomCodeTag').textContent = roomCode;
+}
+
+document.getElementById('leaveBtn').addEventListener('click', ()=>{
+  socket.emit('table:leave', ()=>{
+    roomCode = "";
+    enterDashboard();
+  });
+});
+
+function act(type){ socket.emit('table:action', {type}, (res)=>{ if(res && !res.ok) alert(res.error); }); }
+
+function render(state){
+  document.getElementById('potAmt').textContent = state.pot;
+  document.getElementById('betAmt').textContent = state.currentHighBet ? `текущая ставка: ${state.currentHighBet}` : '';
+  const phaseNames = {lobby:'Ожидание раздачи', betting:'Идёт торговля', handEnd:'Раздача завершена'};
+  document.getElementById('phaseTag').textContent = phaseNames[state.phase] || '';
+
+  const banner = document.getElementById('showdownBanner');
+  banner.innerHTML = (state.phase === 'handEnd' && state.lastWinner)
+    ? `<div class="showdown-banner">Банк забирает: <b>${state.lastWinner.join(', ')}</b></div>` : '';
+
+  const grid = document.getElementById('seatsGrid');
+  grid.innerHTML = '';
+  const myIdx = state.seats.findIndex(s => s && s.username === me.username);
+  state.seats.forEach((s, i) => {
+    const div = document.createElement('div');
+    if(!s){ div.className = 'seat empty'; div.textContent = 'Свободное место'; grid.appendChild(div); return; }
+    let cls = 'seat';
+    if(i === myIdx) cls += ' me';
+    if(state.phase==='betting' && i===state.turnIndex) cls += ' turn';
+    if(s.folded) cls += ' folded';
+    div.className = cls;
+
+    let statusTxt = '';
+    if(s.folded) statusTxt = '<span class="seat-status folded-txt">пас</span>';
+    else if(state.phase==='betting' && i===state.turnIndex) statusTxt = '<span class="seat-status turn-txt">ходит…</span>';
+    else if(s.inHand) statusTxt = `<span class="seat-status">поставил ${s.betThisRound}</span>`;
+    else statusTxt = '<span class="seat-status">за столом</span>';
+
+    let cardsHtml = '';
+    if(s.inHand && s.hand && s.hand.length){
+      const shown = s.hand[0] !== null;
+      cardsHtml = shown
+        ? `<div class="hand-cards">${s.hand.map(c=>`<div class="mini-card ${suitClass(c.s)}">${c.r}${c.s}</div>`).join('')}</div>`
+        : `<div class="hand-cards">${s.hand.map(()=>`<div class="mini-card back"></div>`).join('')}</div>`;
+    }
+    div.innerHTML = `<div class="seat-head"><div class="seat-name">${s.username}${state.hostName===s.username?' 👑':''}</div><div class="seat-chips">${s.chips}</div></div>${statusTxt}${cardsHtml}`;
+    grid.appendChild(div);
+  });
+
+  const myCardsEl = document.getElementById('myCards');
+  const comboTag = document.getElementById('comboTag');
+  myCardsEl.innerHTML = '';
+  if(myIdx >= 0 && state.seats[myIdx].inHand && state.seats[myIdx].hand.length && state.seats[myIdx].hand[0] !== null){
+    state.seats[myIdx].hand.forEach(c => {
+      const d = document.createElement('div'); d.className = 'card ' + suitClass(c.s);
+      d.innerHTML = `<div class="r">${c.r}</div><div class="s">${c.s}</div>`; myCardsEl.appendChild(d);
+    });
+    comboTag.style.display = 'inline-block';
+    comboTag.textContent = describeHandClient(state.seats[myIdx].hand);
+  } else {
+    comboTag.style.display = 'none';
+    myCardsEl.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Карт пока нет — ждите раздачи.</div>';
+  }
+
+  const zone = document.getElementById('actionZone');
+  zone.innerHTML = '';
+  if(state.phase === 'lobby'){
+    if(myIdx >= 0){
+      const seatedCount = state.seats.filter(s=>s).length;
+      const div = document.createElement('div'); div.className = 'host-panel';
+      const btn = document.createElement('button'); btn.className = 'btn';
+      btn.textContent = seatedCount < 2 ? 'Нужно от 2 игроков' : 'Раздать карты';
+      btn.disabled = seatedCount < 2;
+      btn.addEventListener('click', ()=>act('deal'));
+      div.appendChild(btn); zone.appendChild(div);
+    } else {
+      const p = document.createElement('div'); p.className = 'wait-note'; p.textContent = 'Ждём раздачи…'; zone.appendChild(p);
+    }
+  } else if(state.phase === 'betting'){
+    if(myIdx >= 0 && myIdx === state.turnIndex){
+      const div = document.createElement('div'); div.className = 'actions';
+      const need = state.currentHighBet - state.seats[myIdx].betThisRound;
+      const callBtn = document.createElement('button'); callBtn.className='act-call';
+      callBtn.textContent = need > 0 ? `Играть (+${need})` : 'Чек'; callBtn.addEventListener('click', ()=>act('call'));
+      const raiseBtn = document.createElement('button'); raiseBtn.className='act-raise';
+      raiseBtn.textContent = `Поднять (+${state.betUnit})`; raiseBtn.addEventListener('click', ()=>act('raise'));
+      const foldBtn = document.createElement('button'); foldBtn.className='act-fold';
+      foldBtn.textContent = 'Пас'; foldBtn.addEventListener('click', ()=>act('fold'));
+      div.appendChild(callBtn); div.appendChild(raiseBtn); div.appendChild(foldBtn); zone.appendChild(div);
+    } else {
+      const p = document.createElement('div'); p.className = 'wait-note';
+      const turnSeat = state.seats[state.turnIndex];
+      p.textContent = myIdx < 0 ? 'Вы наблюдаете за раздачей.' : `Ход игрока: ${turnSeat?turnSeat.username:''}…`;
+      zone.appendChild(p);
+    }
+  } else if(state.phase === 'handEnd'){
+    if(myIdx >= 0){
+      const div = document.createElement('div'); div.className = 'host-panel';
+      const btn = document.createElement('button'); btn.className = 'btn';
+      btn.textContent = 'Следующая раздача'; btn.addEventListener('click', ()=>act('next'));
+      div.appendChild(btn); zone.appendChild(div);
+    } else {
+      const p = document.createElement('div'); p.className = 'wait-note'; p.textContent = 'Ждём следующую раздачу…'; zone.appendChild(p);
+    }
+  }
+
+  const logBox = document.getElementById('logBox');
+  logBox.innerHTML = state.log.map(l => `<div>${l}</div>`).join('');
+  logBox.scrollTop = logBox.scrollHeight;
+}
+
+/* Локальная копия оценки комбинации — только для подписи "Пара/Флеш/Тройка" под своими картами. */
+const RANKS_C = ["6","7","8","9","10","J","Q","K","A"];
+const RANK_VALUE_C = Object.fromEntries(RANKS_C.map((r,i)=>[r,i]));
+const POINTS_C = {"6":6,"7":7,"8":8,"9":9,"10":10,"J":10,"Q":10,"K":10,"A":11};
+function describeHandClient(hand){
+  const ranks = hand.map(c=>c.r), suits = hand.map(c=>c.s);
+  if(new Set(ranks).size===1) return "Тройка (свара!)";
+  if(new Set(suits).size===1) return "Флеш";
+  const counts = {}; ranks.forEach(r=>counts[r]=(counts[r]||0)+1);
+  if(Object.values(counts).includes(2)) return "Пара";
+  return "Старшая карта";
+}
+
+/* ===================== СТАРТ ===================== */
+(async function init(){
+  if(!token){ showOnly(['authView']); return; }
+  try{
+    const data = await api('/api/me', 'GET');
+    me = data.user;
+    connectSocket();
+    await enterDashboard();
+  }catch(e){
+    logout();
+  }
+})();
+</script>
+
+</body>
+</html>
