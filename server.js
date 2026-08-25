@@ -144,6 +144,109 @@ app.post('/api/admin/promote', authMiddleware, adminMiddleware, (req, res) => {
   res.json({ ok: true, isAdmin: !target.is_admin });
 });
 
+// ===================== СПОРТ: МАТЧИ И СТАВКИ =====================
+// Коэффициенты задаёт администратор вручную под каждый матч — без
+// встроенной наценки/маржи в чью-либо пользу. Ставки идут на фишки клуба.
+
+function toPublicMatch(m) {
+  return {
+    id: m.id, title: m.title, competition: m.competition,
+    oddsHome: m.odds_home, oddsDraw: m.odds_draw, oddsAway: m.odds_away,
+    status: m.status, result: m.result, createdAt: m.created_at
+  };
+}
+
+app.get('/api/sports/matches', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM sport_matches ORDER BY created_at DESC').all();
+  res.json({ matches: rows.map(toPublicMatch) });
+});
+
+app.get('/api/sports/mybets', authMiddleware, (req, res) => {
+  const rows = db.prepare(`
+    SELECT b.*, m.title, m.competition FROM sport_bets b
+    JOIN sport_matches m ON m.id = b.match_id
+    WHERE b.username = ? COLLATE NOCASE ORDER BY b.created_at DESC
+  `).all(req.dbUser.username);
+  res.json({ bets: rows });
+});
+
+app.post('/api/sports/bet', authMiddleware, (req, res) => {
+  const { matchId, pick, stake } = req.body || {};
+  const st = parseInt(stake);
+  if (!matchId || !['home', 'draw', 'away'].includes(pick) || !Number.isFinite(st) || st <= 0) {
+    return res.status(400).json({ error: 'Некорректные данные ставки.' });
+  }
+  const match = db.prepare('SELECT * FROM sport_matches WHERE id = ?').get(matchId);
+  if (!match) return res.status(404).json({ error: 'Матч не найден.' });
+  if (match.status !== 'open') return res.status(400).json({ error: 'Приём ставок на этот матч закрыт.' });
+
+  const oddsMap = { home: match.odds_home, draw: match.odds_draw, away: match.odds_away };
+  const odds = oddsMap[pick];
+  if (!odds) return res.status(400).json({ error: 'На этот исход ставки не принимаются.' });
+
+  const user = getUserByUsername(req.dbUser.username);
+  if (st > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+
+  db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(st, user.username);
+  db.prepare('INSERT INTO sport_bets (username, match_id, pick, stake, odds, status, payout, created_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(user.username, matchId, pick, st, odds, 'pending', 0, Date.now());
+
+  res.json({ ok: true, chips: user.chips - st });
+});
+
+app.post('/api/admin/sports/create', authMiddleware, adminMiddleware, (req, res) => {
+  const { title, competition, oddsHome, oddsDraw, oddsAway } = req.body || {};
+  const oh = parseFloat(oddsHome), od = oddsDraw !== undefined && oddsDraw !== '' ? parseFloat(oddsDraw) : null, oa = parseFloat(oddsAway);
+  if (!title || !Number.isFinite(oh) || oh <= 1 || !Number.isFinite(oa) || oa <= 1) {
+    return res.status(400).json({ error: 'Заполните название и корректные коэффициенты (больше 1.0).' });
+  }
+  if (od !== null && (!Number.isFinite(od) || od <= 1)) {
+    return res.status(400).json({ error: 'Коэффициент на ничью должен быть больше 1.0 (или оставьте поле пустым, если ничьей не бывает).' });
+  }
+  db.prepare('INSERT INTO sport_matches (title, competition, odds_home, odds_draw, odds_away, status, created_by, created_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(title, competition || null, oh, od, oa, 'open', req.dbUser.username, Date.now());
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/sports/close', authMiddleware, adminMiddleware, (req, res) => {
+  const { matchId } = req.body || {};
+  const match = db.prepare('SELECT * FROM sport_matches WHERE id = ?').get(matchId);
+  if (!match) return res.status(404).json({ error: 'Матч не найден.' });
+  if (match.status !== 'open') return res.status(400).json({ error: 'Матч уже закрыт или рассчитан.' });
+  db.prepare('UPDATE sport_matches SET status = ? WHERE id = ?').run('closed', matchId);
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/sports/resolve', authMiddleware, adminMiddleware, (req, res) => {
+  const { matchId, result } = req.body || {};
+  if (!['home', 'draw', 'away'].includes(result)) return res.status(400).json({ error: 'Некорректный результат.' });
+  const match = db.prepare('SELECT * FROM sport_matches WHERE id = ?').get(matchId);
+  if (!match) return res.status(404).json({ error: 'Матч не найден.' });
+  if (match.status === 'resolved') return res.status(400).json({ error: 'Матч уже рассчитан.' });
+
+  const bets = db.prepare('SELECT * FROM sport_bets WHERE match_id = ? AND status = ?').all(matchId, 'pending');
+  const settle = db.transaction(() => {
+    bets.forEach(b => {
+      if (b.pick === result) {
+        const payout = Math.round(b.stake * b.odds);
+        db.prepare('UPDATE sport_bets SET status = ?, payout = ? WHERE id = ?').run('won', payout, b.id);
+        db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(payout, b.username);
+      } else {
+        db.prepare('UPDATE sport_bets SET status = ?, payout = 0 WHERE id = ?').run('lost', b.id);
+      }
+    });
+    db.prepare('UPDATE sport_matches SET status = ?, result = ? WHERE id = ?').run('resolved', result, matchId);
+  });
+  settle();
+
+  res.json({ ok: true, settledBets: bets.length });
+});
+
+app.get('/api/admin/sports/matches', authMiddleware, adminMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM sport_matches ORDER BY created_at DESC').all();
+  res.json({ matches: rows.map(toPublicMatch) });
+});
+
 // ===================== ИГРОВЫЕ КОМНАТЫ (в памяти сервера) =====================
 const rooms = new Map();        // code -> room object (game.js), + seats[i].socketId
 const socketMeta = new Map();   // socket.id -> { username, roomCode }

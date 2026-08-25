@@ -19,6 +19,32 @@ CREATE TABLE IF NOT EXISTS users (
   banned INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS sport_matches (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  competition TEXT,
+  odds_home REAL NOT NULL,
+  odds_draw REAL,
+  odds_away REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open',   -- open | closed | resolved
+  result TEXT,                            -- home | draw | away
+  created_by TEXT,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sport_bets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  match_id INTEGER NOT NULL,
+  pick TEXT NOT NULL,      -- home | draw | away
+  stake INTEGER NOT NULL,
+  odds REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending | won | lost
+  payout INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
 `);
 
 module.exports = db;
+

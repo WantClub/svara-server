@@ -205,6 +205,7 @@
       </div>
     </div>
     <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> Лобби</div>
+    <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> Спорт</div>
     <div class="drawer-item" id="drwCashier"><span class="ic">💳</span> Касса</div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
     <div class="drawer-item" id="drwAdmin" style="display:none;"><span class="ic">⚙️</span> Админка</div>
@@ -261,6 +262,19 @@
     </div>
   </div>
 
+  <!-- SPORT -->
+  <div id="sportView" class="limited" style="display:none;">
+    <div class="card-panel">
+      <h3>Спорт — ставки на фишки клуба</h3>
+      <p class="hint">Коэффициенты задаёт администратор вручную для каждого матча. Ставки — только на фишки клуба, без реальных денег.</p>
+      <div id="sportMatchesList"></div>
+    </div>
+    <div class="card-panel">
+      <h3>Мои ставки</h3>
+      <div id="sportMyBetsList"></div>
+    </div>
+  </div>
+
   <!-- ADMIN -->
   <div id="adminView" class="wide" style="display:none;">
     <div class="card-panel">
@@ -280,6 +294,22 @@
       <button class="btn secondary" id="refreshAdminTablesBtn" style="max-width:220px;">Обновить список столов</button>
       <div id="adminTablesList" style="margin-top:12px;"></div>
       <div id="spectatePanel"></div>
+    </div>
+    <div class="card-panel">
+      <h3>Спорт — управление матчами</h3>
+      <p class="hint">Коэффициенты задаются вручную. Пустое поле «ничья» — если у события не бывает ничьей.</p>
+      <div class="row2">
+        <div><label>Название матча</label><input type="text" id="spmTitle" placeholder="Барселона — Реал Мадрид"></div>
+        <div><label>Турнир (необяз.)</label><input type="text" id="spmComp" placeholder="Ла Лига"></div>
+      </div>
+      <div class="row2">
+        <div><label>Кф. П1</label><input type="number" id="spmOddsH" step="0.01" min="1.01" placeholder="2.10"></div>
+        <div><label>Кф. Х (необяз.)</label><input type="number" id="spmOddsD" step="0.01" min="1.01" placeholder="3.30"></div>
+        <div><label>Кф. П2</label><input type="number" id="spmOddsA" step="0.01" min="1.01" placeholder="3.40"></div>
+      </div>
+      <button class="btn secondary" id="spmCreateBtn" style="max-width:260px;">Добавить матч</button>
+      <div class="err" id="spmErr"></div>
+      <div id="spmAdminList" style="margin-top:16px;"></div>
     </div>
   </div>
 
@@ -323,7 +353,7 @@ let socket = null;
 let roomCode = "";
 
 function showOnly(ids){
-  ['authView','dashView','adminView','tableTop','feltEl','myHandBar','logBox','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','tableTop','feltEl','myHandBar','logBox','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -356,6 +386,7 @@ function closeDrawer(){
 document.getElementById('menuBtn').addEventListener('click', openDrawer);
 document.getElementById('drawerBg').addEventListener('click', closeDrawer);
 document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
+document.getElementById('drwSport').addEventListener('click', ()=>{ closeDrawer(); enterSport(); });
 document.getElementById('drwCashier').addEventListener('click', ()=>{ closeDrawer(); openCashier(); });
 document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
@@ -487,6 +518,73 @@ function renderOpenRooms(list){
   el.querySelectorAll('[data-joincode]').forEach(b => b.addEventListener('click', ()=> promptBuyInAndJoin(b.dataset.joincode)));
 }
 document.getElementById('refreshRoomsBtn').addEventListener('click', ()=> socket.emit('lobby:join'));
+
+/* ===================== СПОРТ (ИГРОК) ===================== */
+async function enterSport(){
+  showOnly(['topbar','sportView']);
+  renderTopbar();
+  await refreshSportMatches();
+  await refreshMyBets();
+}
+async function refreshSportMatches(){
+  const el = document.getElementById('sportMatchesList');
+  let data;
+  try{ data = await api('/api/sports/matches', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  const open = data.matches.filter(m => m.status === 'open');
+  if(!open.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px; margin-top:8px;">Открытых матчей сейчас нет.</div>'; return; }
+  el.innerHTML = open.map(m => `
+    <div class="open-room-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div>
+        <b>${m.title}</b>
+        ${m.competition ? `<div class="meta">${m.competition}</div>` : ''}
+      </div>
+      <div class="row2" style="gap:8px;">
+        <button class="btn small secondary" data-bet="${m.id}" data-pick="home" data-odds="${m.oddsHome}" style="flex:1;">П1 · ${m.oddsHome.toFixed(2)}</button>
+        ${m.oddsDraw ? `<button class="btn small secondary" data-bet="${m.id}" data-pick="draw" data-odds="${m.oddsDraw}" style="flex:1;">Х · ${m.oddsDraw.toFixed(2)}</button>` : ''}
+        <button class="btn small secondary" data-bet="${m.id}" data-pick="away" data-odds="${m.oddsAway}" style="flex:1;">П2 · ${m.oddsAway.toFixed(2)}</button>
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-bet]').forEach(b=>{
+    b.addEventListener('click', ()=> promptSportBet(b.dataset.bet, b.dataset.pick, parseFloat(b.dataset.odds)));
+  });
+}
+function promptSportBet(matchId, pick, odds){
+  const pickLabel = {home:'П1', draw:'Ничья', away:'П2'}[pick];
+  showModal(`
+    <h4>Ставка: ${pickLabel} (кф. ${odds.toFixed(2)})</h4>
+    <label>Сумма ставки</label><input type="number" id="mStake" value="100" min="1" step="10">
+    <div class="err" id="mStakeErr"></div>
+    <button class="btn" id="mStakeConfirm">Поставить</button>
+    <button class="btn secondary" id="mStakeCancel">Отмена</button>
+  `);
+  document.getElementById('mStakeCancel').addEventListener('click', closeModal);
+  document.getElementById('mStakeConfirm').addEventListener('click', async ()=>{
+    const stake = parseInt(document.getElementById('mStake').value) || 0;
+    const errEl = document.getElementById('mStakeErr');
+    try{
+      const res = await api('/api/sports/bet', 'POST', {matchId: parseInt(matchId), pick, stake});
+      me.chips = res.chips;
+      closeModal();
+      await refreshSportMatches();
+      await refreshMyBets();
+    }catch(e){ errEl.textContent = e.message; }
+  });
+}
+async function refreshMyBets(){
+  const el = document.getElementById('sportMyBetsList');
+  let data;
+  try{ data = await api('/api/sports/mybets', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.bets.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Ставок пока нет.</div>'; return; }
+  const pickLabel = {home:'П1', draw:'Х', away:'П2'};
+  el.innerHTML = data.bets.map(b => {
+    const badge = b.status === 'pending' ? '<span class="pill" style="background:rgba(198,161,91,0.15); color:var(--gold);">ожидает</span>'
+      : b.status === 'won' ? `<span class="pill active">+${b.payout}</span>`
+      : `<span class="pill banned">−${b.stake}</span>`;
+    return `<div class="open-room-row"><div>${b.title}<div class="meta">${pickLabel[b.pick]} · ставка ${b.stake} · кф. ${b.odds.toFixed(2)}</div></div>${badge}</div>`;
+  }).join('');
+}
+
 document.getElementById('joinByCodeBtn').addEventListener('click', ()=>{
   const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
   const errEl = document.getElementById('dashErr'); errEl.textContent = "";
@@ -566,6 +664,7 @@ async function enterAdmin(){
   renderTopbar();
   await renderAdminUsers();
   refreshAdminTables();
+  refreshAdminSportMatches();
 }
 async function renderAdminUsers(filter){
   let list;
@@ -645,6 +744,64 @@ function refreshAdminTables(){
   });
 }
 document.getElementById('refreshAdminTablesBtn').addEventListener('click', refreshAdminTables);
+
+/* ===================== СПОРТ (АДМИН) ===================== */
+document.getElementById('spmCreateBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('spmErr'); errEl.textContent = "";
+  const title = document.getElementById('spmTitle').value.trim();
+  const competition = document.getElementById('spmComp').value.trim();
+  const oddsHome = document.getElementById('spmOddsH').value;
+  const oddsDraw = document.getElementById('spmOddsD').value;
+  const oddsAway = document.getElementById('spmOddsA').value;
+  try{
+    await api('/api/admin/sports/create', 'POST', {title, competition, oddsHome, oddsDraw: oddsDraw || undefined, oddsAway});
+    document.getElementById('spmTitle').value = '';
+    document.getElementById('spmComp').value = '';
+    document.getElementById('spmOddsH').value = '';
+    document.getElementById('spmOddsD').value = '';
+    document.getElementById('spmOddsA').value = '';
+    await refreshAdminSportMatches();
+  }catch(e){ errEl.textContent = e.message; }
+});
+
+async function refreshAdminSportMatches(){
+  const el = document.getElementById('spmAdminList');
+  let data;
+  try{ data = await api('/api/admin/sports/matches', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.matches.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Матчей ещё нет.</div>'; return; }
+  const statusLabel = {open:'приём ставок открыт', closed:'приём закрыт, ждёт результата', resolved:'рассчитан'};
+  el.innerHTML = data.matches.map(m => `
+    <div class="open-room-row" style="flex-direction:column; align-items:stretch; gap:8px;">
+      <div>
+        <b>${m.title}</b> ${m.competition ? `<span class="meta">· ${m.competition}</span>` : ''}
+        <div class="meta">П1 ${m.oddsHome.toFixed(2)} ${m.oddsDraw?`· Х ${m.oddsDraw.toFixed(2)}`:''} · П2 ${m.oddsAway.toFixed(2)} — ${statusLabel[m.status]}${m.result?` (итог: ${({home:'П1',draw:'Х',away:'П2'})[m.result]})`:''}</div>
+      </div>
+      ${m.status !== 'resolved' ? `
+      <div class="admin-actions">
+        ${m.status === 'open' ? `<button data-close="${m.id}">Закрыть приём ставок</button>` : ''}
+        <button class="adm" data-resolve="${m.id}" data-r="home">Итог: П1</button>
+        ${m.oddsDraw ? `<button class="adm" data-resolve="${m.id}" data-r="draw">Итог: Х</button>` : ''}
+        <button class="adm" data-resolve="${m.id}" data-r="away">Итог: П2</button>
+      </div>` : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('[data-close]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      try{ await api('/api/admin/sports/close', 'POST', {matchId: parseInt(b.dataset.close)}); await refreshAdminSportMatches(); }
+      catch(e){ alert(e.message); }
+    });
+  });
+  el.querySelectorAll('[data-resolve]').forEach(b=>{
+    b.addEventListener('click', async ()=>{
+      if(!confirm('Рассчитать матч и выплатить выигрыши? Это действие необратимо.')) return;
+      try{
+        await api('/api/admin/sports/resolve', 'POST', {matchId: parseInt(b.dataset.resolve), result: b.dataset.r});
+        await refreshAdminSportMatches();
+      }catch(e){ alert(e.message); }
+    });
+  });
+}
+
 
 function suitClass(s){ return (s==='♥'||s==='♦') ? 'red' : ''; }
 
