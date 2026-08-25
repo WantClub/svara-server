@@ -282,6 +282,13 @@ app.get('/api/admin/slots/stats', authMiddleware, adminMiddleware, (req, res) =>
 // Наблюдательная аналитика для владельца клуба: история ручных
 // пополнений/списаний и статистика раздач в покере. Это НЕ доход клуба —
 // фишки игрока остаются его фишками внутри закрытой экономики клуба.
+//
+// RAKE_STAT_PERCENT — чисто расчётный процент для статистики «сколько
+// составил бы рейк». Он НИГДЕ не применяется как реальное списание — ни у
+// одного игрока фишки за это не удерживаются и никому не начисляются.
+// Это просто число для отчёта владельцу.
+const RAKE_STAT_PERCENT = 5;
+
 app.get('/api/admin/player/:username/stats', authMiddleware, adminMiddleware, (req, res) => {
   const username = req.params.username;
   const target = getUserByUsername(username);
@@ -295,13 +302,16 @@ app.get('/api/admin/player/:username/stats', authMiddleware, adminMiddleware, (r
     `SELECT COUNT(*) as played,
             SUM(CASE WHEN won = 1 THEN 1 ELSE 0 END) as won,
             SUM(CASE WHEN won = 0 THEN 1 ELSE 0 END) as lost,
-            COALESCE(SUM(delta),0) as netChips
+            COALESCE(SUM(delta),0) as netChips,
+            COALESCE(SUM(pot_size),0) as totalPotVolume
      FROM hand_history WHERE username = ? COLLATE NOCASE`
   ).get(username);
 
   const recentHands = db.prepare(
-    'SELECT room_code, hand_number, delta, won, created_at FROM hand_history WHERE username = ? COLLATE NOCASE ORDER BY created_at DESC LIMIT 30'
+    'SELECT room_code, hand_number, delta, won, pot_size, created_at FROM hand_history WHERE username = ? COLLATE NOCASE ORDER BY created_at DESC LIMIT 30'
   ).all(username);
+
+  const theoreticalRake = Math.round((handsRow.totalPotVolume || 0) * RAKE_STAT_PERCENT / 100);
 
   res.json({
     username: target.username,
@@ -311,10 +321,23 @@ app.get('/api/admin/player/:username/stats', authMiddleware, adminMiddleware, (r
       played: handsRow.played || 0,
       won: handsRow.won || 0,
       lost: handsRow.lost || 0,
-      netChips: handsRow.netChips || 0
+      netChips: handsRow.netChips || 0,
+      totalPotVolume: handsRow.totalPotVolume || 0
     },
+    theoreticalRake,
+    rakePercent: RAKE_STAT_PERCENT,
     recentHands
   });
+});
+
+app.get('/api/admin/rake-stats', authMiddleware, adminMiddleware, (req, res) => {
+  const row = db.prepare(`
+    SELECT COUNT(*) as totalHands, COALESCE(SUM(pot_size),0) as totalPotVolume FROM (
+      SELECT DISTINCT room_code, hand_number, pot_size FROM hand_history
+    )
+  `).get();
+  const theoreticalRake = Math.round((row.totalPotVolume || 0) * RAKE_STAT_PERCENT / 100);
+  res.json({ totalPotVolume: row.totalPotVolume || 0, totalHands: row.totalHands || 0, theoreticalRake, rakePercent: RAKE_STAT_PERCENT });
 });
 
 // ===================== ИГРОВЫЕ КОМНАТЫ (в памяти сервера) =====================
@@ -465,13 +488,14 @@ io.on('connection', (socket) => {
     if (room.lastLoggedHand === room.handNumber) return; // уже записали эту раздачу
     room.lastLoggedHand = room.handNumber;
     const starts = room.handStartChips || {};
+    const potSize = room.lastPotSize || 0;
     room.seats.forEach(s => {
       if (!s) return;
       const startChips = starts[s.username];
       if (startChips === undefined) return; // не участвовал в этой раздаче
       const delta = s.chips - startChips;
-      db.prepare('INSERT INTO hand_history (username, room_code, hand_number, delta, won, created_at) VALUES (?,?,?,?,?,?)')
-        .run(s.username, room.code, room.handNumber, delta, delta > 0 ? 1 : 0, Date.now());
+      db.prepare('INSERT INTO hand_history (username, room_code, hand_number, delta, won, pot_size, created_at) VALUES (?,?,?,?,?,?,?)')
+        .run(s.username, room.code, room.handNumber, delta, delta > 0 ? 1 : 0, potSize, Date.now());
     });
   }
 

@@ -120,6 +120,7 @@ function resolveIfDone(room) {
     room.log.push(`${w.username} забирает банк ${room.pot} — все остальные спасовали.`);
     room.phase = 'handEnd';
     room.lastWinner = [w.username];
+    room.lastPotSize = room.pot;
     room.pot = 0;
     return;
   }
@@ -138,6 +139,7 @@ function resolveIfDone(room) {
     room.log.push(`Вскрытие: ${active.map(i => `${room.seats[i].username} — ${describeHand(room.seats[i].hand)}`).join('; ')}.`);
     room.log.push(`Банк ${room.pot} забирает: ${room.lastWinner.join(', ')}.`);
     room.phase = 'handEnd';
+    room.lastPotSize = room.pot;
     room.pot = 0;
     return;
   }

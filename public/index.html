@@ -357,6 +357,11 @@
       <h3>Слоты — статистика</h3>
       <div class="stat-row" id="slotsStatRow"></div>
     </div>
+    <div class="card-panel">
+      <h3>Покер — расчётный рейк по клубу</h3>
+      <p class="hint">Гипотетическая цифра по всем столам сразу — сколько составил бы рейк, если бы он был. Ничего не удерживается у игроков.</p>
+      <div class="stat-row" id="rakeStatRow"></div>
+    </div>
   </div>
 
   <!-- TABLE -->
@@ -769,6 +774,7 @@ async function enterAdmin(){
   refreshAdminTables();
   refreshAdminSportMatches();
   refreshSlotsStats();
+  refreshRakeStats();
 }
 async function refreshSlotsStats(){
   const el = document.getElementById('slotsStatRow');
@@ -779,6 +785,16 @@ async function refreshSlotsStats(){
     <div class="stat-box"><div class="n">${data.wagered}</div><div class="l">поставлено фишек</div></div>
     <div class="stat-box"><div class="n">${data.paid}</div><div class="l">выплачено фишек</div></div>
     <div class="stat-box"><div class="n">${data.net}</div><div class="l">чистая разница</div></div>
+  `;
+}
+async function refreshRakeStats(){
+  const el = document.getElementById('rakeStatRow');
+  let data;
+  try{ data = await api('/api/admin/rake-stats', 'GET'); }catch(e){ return; }
+  el.innerHTML = `
+    <div class="stat-box"><div class="n">${data.totalHands}</div><div class="l">раздач всего</div></div>
+    <div class="stat-box"><div class="n">${data.totalPotVolume}</div><div class="l">общий объём банков</div></div>
+    <div class="stat-box"><div class="n" style="color:var(--gold);">${data.theoreticalRake}</div><div class="l">условный рейк (${data.rakePercent}%)</div></div>
   `;
 }
 async function renderAdminUsers(filter){
@@ -881,6 +897,13 @@ async function showPlayerStatsModal(uname){
       <div class="stat-box"><div class="n">${h.won}</div><div class="l">выиграно</div></div>
       <div class="stat-box"><div class="n">${h.lost}</div><div class="l">проиграно</div></div>
       <div class="stat-box"><div class="n" style="color:${h.netChips>=0?'var(--green)':'var(--red)'};">${h.netChips>=0?'+':''}${h.netChips}</div><div class="l">чистый результат в покере</div></div>
+    </div>
+
+    <h3 style="margin-top:18px;">Расчётный рейк (только статистика, не списывается)</h3>
+    <p class="hint">Гипотетическая цифра: сколько составил бы ${data.rakePercent}% рейк со всех банков раздач с участием игрока, если бы он существовал. Это не реальное удержание — фишки никуда не списываются.</p>
+    <div class="stat-row">
+      <div class="stat-box"><div class="n">${h.totalPotVolume}</div><div class="l">общий объём банков</div></div>
+      <div class="stat-box"><div class="n" style="color:var(--gold);">${data.theoreticalRake}</div><div class="l">условный рейк (${data.rakePercent}%)</div></div>
     </div>
 
     <h3 style="margin-top:18px;">История ручных начислений</h3>

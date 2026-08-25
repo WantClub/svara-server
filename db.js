@@ -69,9 +69,18 @@ CREATE TABLE IF NOT EXISTS hand_history (
   hand_number INTEGER NOT NULL,
   delta INTEGER NOT NULL,      -- изменение фишек игрока за эту раздачу (может быть отрицательным)
   won INTEGER NOT NULL,        -- 1 если раздача сыграна в плюс, 0 если в минус
+  pot_size INTEGER NOT NULL DEFAULT 0,  -- размер банка раздачи — только для расчётной статистики
   created_at INTEGER NOT NULL
 );
 `);
+
+// Миграция: если таблица hand_history уже существовала до добавления
+// колонки pot_size — безопасно добавляем её (игнорируем ошибку, если уже есть).
+try {
+  db.exec('ALTER TABLE hand_history ADD COLUMN pot_size INTEGER NOT NULL DEFAULT 0');
+} catch (e) {
+  // колонка уже существует — это нормально
+}
 
 module.exports = db;
 
