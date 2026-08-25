@@ -1302,10 +1302,12 @@ function render(state){
   const gridRect = grid.getBoundingClientRect();
   const cw = gridRect.width || 300, ch = gridRect.height || 300;
   const isMobileW = window.innerWidth <= 700;
-  const seatHalfW = (isMobileW ? 74 : 96) / 2 + 4;
-  const seatHalfH = (isMobileW ? 96 : 128) / 2 + 4;
-  const rx = Math.max(cw/2 - seatHalfW, 24);
-  const ry = Math.max(ch/2 - seatHalfH, 24);
+  // Отступ считаем от размера самой аватарки (а не всего блока с именем/картами) —
+  // чтобы аватарка оказывалась прямо на кромке стола, как просил пользователь,
+  // а не просто "где-то близко к краю".
+  const avatarHalf = (isMobileW ? 42 : 52) / 2;
+  const rx = Math.max(cw/2 - avatarHalf - 2, 20);
+  const ry = Math.max(ch/2 - avatarHalf - 2, 20);
 
   for(let k=0; k<state.seats.length; k++){
     const i = (startIdx + k) % state.seats.length;
