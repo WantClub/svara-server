@@ -439,10 +439,37 @@ function scheduleTurnTimer(room) {
     if (result.ok) {
       fresh.log.push(`⏱ Автопас по истечении времени хода.`);
       logHandHistoryIfNeeded(fresh);
+      if (fresh.phase === 'handEnd') scheduleAutoNextHand(fresh);
       scheduleTurnTimer(fresh);
       broadcastRoom(fresh.code);
     }
   }, TURN_SECONDS * 1000);
+}
+
+// ===================== АВТОМАТИЧЕСКАЯ РАЗДАЧА =====================
+function tryAutoDeal(room) {
+  if (room.phase !== 'lobby') return;
+  const seated = game.seatedIndices(room).filter(i => room.seats[i].chips > 0);
+  if (seated.length >= 2) {
+    const result = game.dealHand(room);
+    if (result.ok) scheduleTurnTimer(room);
+  }
+}
+
+const AUTO_NEXT_HAND_DELAY = 6000; // время показать итог раздачи, прежде чем начать следующую
+function scheduleAutoNextHand(room) {
+  if (room.autoNextTimer) { clearTimeout(room.autoNextTimer); room.autoNextTimer = null; }
+  if (room.phase !== 'handEnd') return;
+  room.autoNextTimer = setTimeout(() => {
+    const fresh = rooms.get(room.code);
+    if (!fresh || fresh.phase !== 'handEnd') return;
+    const result = game.nextHandReset(fresh);
+    if (result.ok) {
+      tryAutoDeal(fresh);
+      broadcastRoom(fresh.code);
+      broadcastLobby();
+    }
+  }, AUTO_NEXT_HAND_DELAY);
 }
 
 // ===================== SOCKET.IO AUTH =====================
@@ -533,6 +560,8 @@ io.on('connection', (socket) => {
     socket.join('table:' + code);
     socketMeta.set(socket.id, { username: socket.username, roomCode: code });
 
+    tryAutoDeal(room);
+
     cb({ ok: true, code });
     broadcastRoom(code);
     broadcastLobby();
@@ -542,7 +571,7 @@ io.on('connection', (socket) => {
     return room.seats.findIndex(s => s && s.username === socket.username);
   }
 
-  socket.on('table:action', ({ type }, cb) => {
+  socket.on('table:action', ({ type, amount }, cb) => {
     const meta = socketMeta.get(socket.id);
     const room = meta && rooms.get(meta.roomCode);
     if (!room) return cb && cb({ ok: false, error: 'Вы не за столом.' });
@@ -552,12 +581,13 @@ io.on('connection', (socket) => {
     let result;
     if (type === 'deal') result = game.dealHand(room);
     else if (type === 'call') result = game.actCall(room, idx);
-    else if (type === 'raise') result = game.actRaise(room, idx);
+    else if (type === 'raise') result = game.actRaise(room, idx, amount);
     else if (type === 'fold') result = game.actFold(room, idx);
     else if (type === 'next') result = game.nextHandReset(room);
     else result = { ok: false, error: 'Неизвестное действие.' };
 
     if (result.ok) logHandHistoryIfNeeded(room);
+    if (result.ok && room.phase === 'handEnd') scheduleAutoNextHand(room);
     if (result.ok) scheduleTurnTimer(room);
     if (cb) cb(result);
     if (result.ok) broadcastRoom(room.code);

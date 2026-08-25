@@ -44,9 +44,14 @@ function compareScores(a, b) {
   return 0;
 }
 
+function handPoints(hand) {
+  return hand.reduce((sum, c) => sum + (POINTS[c.r] || 0), 0);
+}
+
 function describeHand(hand) {
   const cat = evaluateHand(hand)[0];
-  return { 3: "Тройка (свара!)", 2: "Флеш", 1: "Пара", 0: "Старшая карта" }[cat];
+  const name = { 3: "Тройка (свара!)", 2: "Флеш", 1: "Пара", 0: "Старшая карта" }[cat];
+  return `${name} · ${handPoints(hand)}`;
 }
 
 // ===================== СОСТОЯНИЕ СТОЛА =====================
@@ -163,11 +168,14 @@ function actCall(room, seatIdx) {
   return { ok: true };
 }
 
-function actRaise(room, seatIdx) {
+function actRaise(room, seatIdx, raiseAmount) {
   if (room.phase !== 'betting') return { ok: false, error: 'Сейчас не время торговли.' };
   if (room.turnIndex !== seatIdx) return { ok: false, error: 'Сейчас не ваш ход.' };
   const s = room.seats[seatIdx];
-  const newHigh = room.currentHighBet + room.betUnit;
+  // Игрок может поднять на любую сумму от своего желания — минимум один анте (betUnit).
+  const parsedAmount = parseInt(raiseAmount);
+  const raiseBy = Number.isFinite(parsedAmount) && parsedAmount > 0 ? Math.max(parsedAmount, room.betUnit) : room.betUnit;
+  const newHigh = room.currentHighBet + raiseBy;
   const need = newHigh - s.betThisRound;
   const pay = Math.min(need, s.chips);
   s.chips -= pay; s.betThisRound += pay; room.pot += pay;
