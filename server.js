@@ -456,7 +456,7 @@ function tryAutoDeal(room) {
   }
 }
 
-const AUTO_NEXT_HAND_DELAY = 6000; // время показать итог раздачи, прежде чем начать следующую
+const AUTO_NEXT_HAND_DELAY = 10000; // время показать итог раздачи (кто выиграл и с какими картами), прежде чем начать следующую
 function scheduleAutoNextHand(room) {
   if (room.autoNextTimer) { clearTimeout(room.autoNextTimer); room.autoNextTimer = null; }
   if (room.phase !== 'handEnd') return;

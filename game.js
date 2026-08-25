@@ -243,7 +243,7 @@ function redactForViewer(room, viewerUsername) {
     code: room.code, betUnit: room.betUnit, hostName: room.hostName, maxSeats: room.maxSeats || room.seats.length,
     seats, phase: room.phase, pot: room.pot, currentHighBet: room.currentHighBet,
     turnIndex: room.turnIndex, handNumber: room.handNumber,
-    lastWinner: room.lastWinner, log: room.log.slice(-16),
+    lastWinner: room.lastWinner, lastPotSize: room.lastPotSize || 0, log: room.log.slice(-16),
     turnDeadline: room.turnDeadline || null
   };
 }

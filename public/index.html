@@ -233,8 +233,13 @@
   .host-panel{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;}
   .host-panel .btn{width:auto; flex:1; margin-top:0;}
   .log{margin-top:14px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:10px 14px; max-height:130px; overflow-y:auto; font-family:var(--font-mono); font-size:11.5px; color:var(--muted); line-height:1.7; width:100%; max-width:960px;}
-  .showdown-banner{background:rgba(76,175,125,0.12); border:1px solid var(--green); border-radius:10px; padding:12px 14px; margin-bottom:12px; font-size:13.5px; width:100%; max-width:960px;}
-  .showdown-banner b{color:var(--green);}
+  .showdown-banner{background:rgba(198,161,91,0.1); border:1px solid var(--gold); border-radius:10px; padding:14px 16px; margin-bottom:12px; width:100%; max-width:960px;}
+  .showdown-title{font-family:var(--font-display); font-size:14px; color:var(--gold); letter-spacing:0.03em; margin-bottom:8px;}
+  .winner-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:4px 0;}
+  .winner-name{font-weight:700; font-size:14px; color:var(--ivory);}
+  .winner-combo{font-family:var(--font-mono); font-size:12px; color:var(--gold); background:rgba(198,161,91,0.15); padding:2px 8px; border-radius:10px;}
+  .seat.winner .avatar-circle{border-color:var(--gold); box-shadow:0 0 20px rgba(198,161,91,0.85);}
+  .seat.winner .seat-name-tag{border-color:var(--gold); color:var(--gold);}
 
   .spectate-row{display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--panel-line); border-radius:7px; padding:9px 12px; margin-bottom:7px; font-size:13px;}
   .spectate-hands{margin-top:12px; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:10px;}
@@ -1213,8 +1218,20 @@ function render(state){
     ? '<div class="pot-chip c1"></div><div class="pot-chip c2"></div><div class="pot-chip c3"></div>' : '';
 
   const banner = document.getElementById('showdownBanner');
-  banner.innerHTML = (state.phase === 'handEnd' && state.lastWinner)
-    ? `<div class="showdown-banner">Банк забирает: <b>${state.lastWinner.join(', ')}</b></div>` : '';
+  if(state.phase === 'handEnd' && state.lastWinner && state.lastWinner.length){
+    const rows = state.lastWinner.map(wname => {
+      const seat = state.seats.find(s=>s && s.username===wname);
+      if(!seat || !seat.hand || !seat.hand.length || seat.hand[0]===null){
+        return `<div class="winner-row"><span class="winner-name">🏆 ${wname}</span></div>`;
+      }
+      const combo = describeHandClient(seat.hand);
+      const cardsHtml = seat.hand.map(c=>`<div class="mini-card ${suitClass(c.s)}">${c.r}${c.s}</div>`).join('');
+      return `<div class="winner-row"><span class="winner-name">🏆 ${wname}</span><span class="winner-combo">${combo}</span><div class="hand-cards">${cardsHtml}</div></div>`;
+    }).join('');
+    banner.innerHTML = `<div class="showdown-banner"><div class="showdown-title">Забирает банк ${state.lastPotSize||''}</div>${rows}</div>`;
+  } else {
+    banner.innerHTML = '';
+  }
 
   // Новая раздача — сбрасываем снимок ставок, чтобы анте тоже анимировались как "полёт фишек".
   if(lastHandNumberForAnim !== state.handNumber){
@@ -1249,6 +1266,7 @@ function render(state){
     if(i === myIdx) cls += ' me';
     if(state.phase==='betting' && i===state.turnIndex) cls += ' turn';
     if(s.folded) cls += ' folded';
+    if(state.phase==='handEnd' && state.lastWinner && state.lastWinner.includes(s.username)) cls += ' winner';
     div.className = cls;
     div.dataset.seatuser = s.username;
 
