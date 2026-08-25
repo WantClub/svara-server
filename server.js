@@ -440,10 +440,33 @@ function scheduleTurnTimer(room) {
   room.turnTimer = setTimeout(() => {
     const fresh = rooms.get(room.code);
     if (!fresh || fresh.phase !== 'betting' || fresh.turnIndex !== seatIdx) return;
+    const seatObj = fresh.seats[seatIdx];
     const result = game.actFold(fresh, seatIdx);
     if (result.ok) {
       fresh.log.push(`⏱ Автопас по истечении времени хода.`);
       logHandHistoryIfNeeded(fresh);
+
+      // Если игрок не реагирует на свой ход уже вторую раздачу подряд —
+      // аккуратно встаём его из-за стола (фишки возвращаются в кошелёк,
+      // аккаунт и остальной баланс не трогаются), чтобы не задерживать
+      // остальных за столом.
+      if (seatObj) {
+        seatObj.consecutiveTimeouts = (seatObj.consecutiveTimeouts || 0) + 1;
+        if (seatObj.consecutiveTimeouts >= 2) {
+          const kickedName = seatObj.username;
+          const kickedSocketId = seatObj.socketId;
+          cashOutSeat(fresh, seatIdx);
+          fresh.log.push(`${kickedName} автоматически встал(а) из-за стола — не отвечал(а) на ход две раздачи подряд.`);
+          if (kickedSocketId) {
+            io.to(kickedSocketId).emit('table:kicked', {
+              reason: 'inactive',
+              message: 'Вы автоматически встали из-за стола — не было хода две раздачи подряд. Фишки возвращены в кошелёк.'
+            });
+          }
+          broadcastLobby();
+        }
+      }
+
       if (fresh.phase === 'handEnd') scheduleAutoNextHand(fresh);
       scheduleTurnTimer(fresh);
       broadcastRoom(fresh.code);
@@ -523,7 +546,7 @@ io.on('connection', (socket) => {
 
     const code = genCode();
     const room = game.createRoom(code, bu, socket.username, seatCount);
-    room.seats[0] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, socketId: socket.id };
+    room.seats[0] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, consecutiveTimeouts: 0, socketId: socket.id };
     rooms.set(code, room);
 
     socket.join('table:' + code);
@@ -559,7 +582,7 @@ io.on('connection', (socket) => {
     const bi = user.chips; // садимся всем балансом кошелька
     db.prepare('UPDATE users SET chips = 0 WHERE username = ?').run(user.username);
 
-    room.seats[emptyIdx] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, socketId: socket.id };
+    room.seats[emptyIdx] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, consecutiveTimeouts: 0, socketId: socket.id };
     room.log.push(`${socket.username} присоединился(-лась) за стол (${bi} фишек).`);
 
     socket.join('table:' + code);
@@ -582,6 +605,13 @@ io.on('connection', (socket) => {
     if (!room) return cb && cb({ ok: false, error: 'Вы не за столом.' });
     const idx = mySeatIndex(room);
     if (idx < 0) return cb && cb({ ok: false, error: 'Вы не за столом.' });
+
+    // Раз это реальное действие живого игрока (не автопас по таймеру —
+    // тот вызывается отдельно, напрямую, минуя этот обработчик) — сбрасываем
+    // счётчик пропущенных подряд раздач.
+    if ((type === 'call' || type === 'raise' || type === 'fold') && room.seats[idx]) {
+      room.seats[idx].consecutiveTimeouts = 0;
+    }
 
     let result;
     if (type === 'deal') result = game.dealHand(room);

@@ -686,6 +686,11 @@ function connectSocket(){
   socket.on('table:state', (st) => render(st));
   socket.on('lobby:rooms', (list) => renderOpenRooms(list));
   socket.on('admin:tableState', (st) => renderSpectateHands(st));
+  socket.on('table:kicked', (data) => {
+    roomCode = "";
+    alert(data.message || 'Вы встали из-за стола.');
+    enterDashboard();
+  });
 }
 
 /* ===================== TOPBAR ===================== */
