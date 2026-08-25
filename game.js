@@ -224,11 +224,13 @@ function nextHandReset(room) {
 
 // Урезанная версия состояния для конкретного зрителя: чужие карты скрыты,
 // кроме момента вскрытия (handEnd) для тех, кто не сбросил карты.
-function redactForViewer(room, viewerUsername) {
+function redactForViewer(room, viewerUsername, viewerIsAdmin) {
   const seats = room.seats.map(s => {
     if (!s) return null;
     const isMe = s.username === viewerUsername;
-    const reveal = isMe || (room.phase === 'handEnd' && !s.folded);
+    // Администратору клуба карты видны всегда — и в наблюдении, и когда он
+    // сам сидит за столом и играет (полный контроль владельца заведения).
+    const reveal = isMe || !!viewerIsAdmin || (room.phase === 'handEnd' && !s.folded);
     return {
       username: s.username,
       avatar: s.avatar || null,

@@ -369,7 +369,9 @@ function broadcastRoom(code) {
   if (!room) return;
   room.seats.forEach(s => {
     if (s && s.socketId) {
-      io.to(s.socketId).emit('table:state', game.redactForViewer(room, s.username));
+      const viewerUser = getUserByUsername(s.username);
+      const viewerIsAdmin = !!(viewerUser && viewerUser.is_admin);
+      io.to(s.socketId).emit('table:state', game.redactForViewer(room, s.username, viewerIsAdmin));
     }
   });
   if (room.spectatorSocketIds && room.spectatorSocketIds.length) {
