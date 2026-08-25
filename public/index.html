@@ -123,33 +123,47 @@
   .room-tag{font-family:var(--font-mono); font-size:12px; color:var(--muted); background:var(--panel); border:1px solid var(--panel-line); padding:5px 10px; border-radius:6px;}
   .room-tag b{color:var(--gold); letter-spacing:0.08em;}
   .felt{
-    position:relative; border:3px solid var(--gold-dim); border-radius:180px / 90px;
-    min-height:420px; padding:20px; width:100%; max-width:960px;
+    position:relative; border-radius:180px / 90px;
+    min-height:420px; padding:26px; width:100%; max-width:960px;
+    margin:22px auto;
     background-color:var(--felt-2);
     background-image:
       radial-gradient(ellipse at 50% 38%, rgba(255,255,255,0.05), transparent 60%),
       radial-gradient(ellipse at center, var(--felt-1) 0%, var(--felt-2) 78%),
       repeating-linear-gradient(45deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 4px),
       repeating-linear-gradient(-45deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 4px);
-    box-shadow: inset 0 0 60px rgba(0,0,0,0.55);
+    box-shadow:
+      inset 0 0 60px rgba(0,0,0,0.55),
+      inset 0 0 0 3px rgba(198,161,91,0.55),
+      0 0 0 18px #1c130a,
+      0 0 0 21px rgba(198,161,91,0.35),
+      0 10px 30px rgba(0,0,0,0.6);
+    background-clip:padding-box;
   }
-  @media(max-width:700px){ .felt{border-radius:28px; min-height:auto; padding:16px 12px 90px;} }
+  @media(max-width:700px){ .felt{border-radius:36px; min-height:auto; padding:18px 12px 90px;} }
   .pot-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:2;}
+  .pot-badge{
+    border:1.5px solid var(--gold-dim); border-radius:8px; padding:4px 16px;
+    background:rgba(0,0,0,0.35); box-shadow:inset 0 0 8px rgba(198,161,91,0.15);
+  }
   .pot-label{font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);}
   .pot-amt{font-family:var(--font-mono); font-weight:700; font-size:26px; color:var(--gold);}
   .pot-bet{font-size:11px; color:var(--ivory); margin-top:4px;}
   .phase-tag{display:inline-block; margin-top:6px; font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(198,161,91,0.15); color:var(--gold);}
   .pot-chips-stack{display:flex; justify-content:center; margin-top:8px;}
   .pot-chip{
-    width:20px; height:20px; border-radius:50%; margin-left:-9px;
+    width:38px; height:38px; border-radius:50%; margin-left:-14px;
     box-shadow:0 3px 5px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.35);
-    border:2px solid var(--gold-dim);
-    background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), transparent 45%), var(--surface);
+    border:2px dashed rgba(255,255,255,0.55);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-mono); font-weight:700; font-size:10px; color:#fff;
   }
+  .pot-chip span{background:rgba(0,0,0,0.35); border-radius:50%; width:26px; height:26px; display:flex; align-items:center; justify-content:center;}
   .pot-chip:first-child{margin-left:0;}
-  .pot-chip.c1{border-color:var(--red); background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.5), transparent 45%), #6b1620;}
-  .pot-chip.c2{border-color:#2c2c2c; background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.4), transparent 45%), #101010;}
-  .pot-chip.c3{border-color:var(--gold); background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), transparent 45%), #4a3a12;}
+  .pot-chip.c1{background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.35), transparent 45%), #6b1620;}
+  .pot-chip.c2{background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.3), transparent 45%), #14141a;}
+  .pot-chip.c3{background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.3), transparent 45%), #1c3a5e;}
+  .pot-chip.c4{background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.3), transparent 45%), #1f5c3a;}
 
   /* ===== Летящая фишка (анимация ставки к банку) ===== */
   .flying-chip{
@@ -202,7 +216,13 @@
   .hand-cards{display:flex; gap:2px; margin-top:1px;}
   .mini-card{width:20px; height:28px; background:var(--card-bg); border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:9px; color:#222; box-shadow:0 1px 3px rgba(0,0,0,0.4);}
   .mini-card.red{color:var(--red);}
-  .mini-card.back{background:repeating-linear-gradient(45deg, #5C2430, #5C2430 4px, #3A1620 4px, #3A1620 8px); border:1px solid var(--gold-dim);}
+  .mini-card.back{
+    background:
+      radial-gradient(circle at center, transparent 0, transparent 3px, var(--gold-dim) 3.4px, var(--gold-dim) 3.8px, transparent 4.2px),
+      linear-gradient(135deg, #14100a, #1f1810 50%, #14100a);
+    border:1px solid var(--gold-dim); position:relative;
+  }
+  .mini-card.back::after{content:'✦'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:6px; color:var(--gold-dim);}
 
   /* ===== Таймер хода ===== */
   .turn-timer{
@@ -220,14 +240,16 @@
   .card{width:52px; height:72px; background:var(--card-bg); border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; box-shadow:0 3px 8px rgba(0,0,0,0.45);}
   .card .r{font-size:17px; color:#222;} .card .s{font-size:15px; margin-top:2px;}
   .card.red .r, .card.red .s{color:var(--red);}
-  .actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
-  .actions button{flex:1; min-width:110px; padding:12px; border-radius:8px; border:1px solid var(--gold-dim); background:transparent; font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.04em; cursor:pointer; color:var(--gold);}
-  .act-call:hover, .act-raise:hover{background:rgba(201,162,39,0.1);}
-  .act-fold{border-color:rgba(214,69,80,0.5) !important; color:#ff9d94;}
-  .act-fold:hover{background:rgba(214,69,80,0.1);}
-  .raise-row{display:flex; gap:8px; margin-top:8px;}
-  .raise-row input{flex:1; background:var(--surface); border:1px solid var(--panel-line); border-radius:7px; padding:10px 12px; color:var(--ivory); font-family:var(--font-mono); font-size:14px;}
-  .raise-row .act-raise{flex-shrink:0; min-width:110px; padding:10px 16px; border-radius:7px; border:1px solid var(--gold-dim); background:transparent; font-family:var(--font-display); font-weight:700; font-size:13px; color:var(--gold); cursor:pointer;}
+  .actions{display:flex; margin-top:14px; border-radius:8px; overflow:hidden; border:1px solid var(--panel-line);}
+  .actions button{flex:1; padding:15px 8px; border:none; border-right:1px solid var(--panel-line); background:var(--surface); font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.04em; cursor:pointer; color:var(--ivory);}
+  .actions button:last-child{border-right:none;}
+  .act-call{background:var(--green) !important; color:#0a1f13 !important;}
+  .act-call:hover{background:#2a8a5c !important;}
+  .act-fold{color:#ff9d94;}
+  .act-fold:hover{background:rgba(214,69,80,0.15);}
+  .raise-row{display:flex; gap:0; margin-top:10px; border:1px solid var(--panel-line); border-radius:8px; overflow:hidden;}
+  .raise-row input{flex:1; background:var(--surface); border:none; padding:13px 14px; color:var(--ivory); font-family:var(--font-mono); font-size:14px;}
+  .raise-row .act-raise{flex-shrink:0; min-width:120px; padding:10px 16px; border:none; border-left:1px solid var(--panel-line); background:transparent; font-family:var(--font-display); font-weight:700; font-size:13px; color:var(--gold); cursor:pointer;}
   .raise-row .act-raise:hover{background:rgba(201,162,39,0.1);}
   .wait-note{font-size:12.5px; color:var(--muted); padding:8px 0;}
   .host-panel{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;}
@@ -476,8 +498,10 @@
   <div class="felt" id="feltEl" style="display:none;">
     <div class="seats" id="seatsGrid"></div>
     <div class="pot-center">
-      <div class="pot-label">Банк</div>
-      <div class="pot-amt" id="potAmt">0</div>
+      <div class="pot-badge">
+        <div class="pot-label">Банк</div>
+        <div class="pot-amt" id="potAmt">0</div>
+      </div>
       <div class="pot-bet" id="betAmt"></div>
       <div class="phase-tag" id="phaseTag"></div>
       <div class="pot-chips-stack" id="potChipsStack"></div>
@@ -1128,6 +1152,19 @@ document.getElementById('refreshAdminTablesBtn').addEventListener('click', refre
 
 function suitClass(s){ return (s==='♥'||s==='♦') ? 'red' : ''; }
 
+/* Разбивает сумму банка на «фишки» с номиналами для наглядной визуализации (не более 4 штук). */
+function chipStackHtml(amount){
+  const DENOMS = [{v:500,c:'c1'},{v:250,c:'c2'},{v:100,c:'c3'},{v:50,c:'c4'}];
+  let rem = amount;
+  const picked = [];
+  for(const d of DENOMS){
+    if(rem >= d.v && picked.length < 4){ picked.push(d); rem -= d.v; }
+  }
+  if(!picked.length) picked.push(DENOMS[DENOMS.length-1]);
+  return picked.map(d => `<div class="pot-chip ${d.c}"><span>${d.v}</span></div>`).join('');
+}
+
+
 /* ===================== ТАЙМЕР ХОДА ===================== */
 let turnTimerInterval = null;
 function updateTurnTimer(state){
@@ -1144,7 +1181,7 @@ function updateTurnTimer(state){
   function tick(){
     const secLeft = Math.max(0, Math.round((state.turnDeadline - Date.now())/1000));
     badge.style.display = 'inline-block';
-    badge.textContent = `${whoText} · ${secLeft} сек`;
+    badge.textContent = `⏱ ${whoText} · ${secLeft} сек`;
     badge.className = 'turn-timer' + (secLeft <= 10 ? ' low' : '');
     if(secLeft <= 0 && turnTimerInterval){ clearInterval(turnTimerInterval); turnTimerInterval = null; }
   }
@@ -1214,8 +1251,7 @@ function render(state){
   document.getElementById('betAmt').textContent = state.currentHighBet ? `текущая ставка: ${state.currentHighBet}` : '';
   const phaseNames = {lobby:'Ожидание раздачи', betting:'Идёт торговля', handEnd:'Раздача завершена'};
   document.getElementById('phaseTag').textContent = phaseNames[state.phase] || '';
-  document.getElementById('potChipsStack').innerHTML = state.pot > 0
-    ? '<div class="pot-chip c1"></div><div class="pot-chip c2"></div><div class="pot-chip c3"></div>' : '';
+  document.getElementById('potChipsStack').innerHTML = state.pot > 0 ? chipStackHtml(state.pot) : '';
 
   const banner = document.getElementById('showdownBanner');
   if(state.phase === 'handEnd' && state.lastWinner && state.lastWinner.length){
