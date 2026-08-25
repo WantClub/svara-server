@@ -653,3 +653,42 @@ io.on('connection', (socket) => {
 server.listen(PORT, () => {
   console.log(`Свара-сервер запущен на порту ${PORT}`);
 });
+
+// ===================== БЕЗОПАСНОЕ ЗАВЕРШЕНИЕ =====================
+// Render (и любой другой хостинг) при передеплое сначала посылает SIGTERM
+// и даёт немного времени на завершение, прежде чем убить процесс. Раньше
+// фишки игроков, сидящих за столом, хранились только в памяти и терялись
+// при перезапуске. Теперь при остановке сервера мы ПЕРЕД выходом
+// принудительно возвращаем фишки всех, кто сейчас сидит за любым столом,
+// обратно в их кошельки в базе данных — деньги не теряются даже при
+// деплое посреди игры.
+let shuttingDown = false;
+function cashOutAllActiveRooms() {
+  let affected = 0;
+  rooms.forEach(room => {
+    room.seats.forEach(s => {
+      if (s && s.chips > 0) {
+        db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(s.chips, s.username);
+        affected++;
+      }
+    });
+  });
+  if (affected > 0) {
+    console.log(`Безопасное завершение: фишки возвращены в кошельки для ${affected} мест за активными столами.`);
+  }
+}
+function gracefulShutdown(signal) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.log(`Получен сигнал ${signal} — сохраняем фишки всех активных столов перед остановкой…`);
+  try {
+    cashOutAllActiveRooms();
+  } catch (e) {
+    console.error('Ошибка при сохранении фишек во время остановки:', e);
+  }
+  // Запись в базу synchronous (better-sqlite3) и уже завершена к этому месту —
+  // дальше можно выходить сразу, не дожидаясь закрытия сетевых соединений.
+  process.exit(0);
+}
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
