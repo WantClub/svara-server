@@ -1272,7 +1272,16 @@ const RANKS_C = ["6","7","8","9","10","J","Q","K","A"];
 const RANK_VALUE_C = Object.fromEntries(RANKS_C.map((r,i)=>[r,i]));
 const POINTS_C = {"6":6,"7":7,"8":8,"9":9,"10":10,"J":10,"Q":10,"K":10,"A":11};
 function handPointsClient(hand){
-  return hand.reduce((sum,c)=> sum + (POINTS_C[c.r]||0), 0);
+  // То же правило, что и на сервере: очки только по общей масти
+  // (двум одномастным картам), либо одна старшая карта, если все масти разные.
+  const bySuit = {};
+  hand.forEach(c => { (bySuit[c.s] = bySuit[c.s] || []).push(c); });
+  const groups = Object.values(bySuit).sort((a,b)=>b.length-a.length);
+  const top = groups[0];
+  if(top.length >= 2){
+    return top.reduce((sum,c)=> sum + (POINTS_C[c.r]||0), 0);
+  }
+  return Math.max(...hand.map(c=>POINTS_C[c.r]||0));
 }
 function describeHandClient(hand){
   const ranks = hand.map(c=>c.r), suits = hand.map(c=>c.s);

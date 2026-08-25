@@ -45,7 +45,19 @@ function compareScores(a, b) {
 }
 
 function handPoints(hand) {
-  return hand.reduce((sum, c) => sum + (POINTS[c.r] || 0), 0);
+  // Настоящее правило Свары: в очки идут только карты общей (самой
+  // многочисленной) масти. Если все три карты одной масти — суммируются
+  // все три. Если только две совпадают мастью — третья (одиночная) карта
+  // в очки не идёт вообще. Если все три карты разных мастей — считается
+  // только одна старшая карта.
+  const bySuit = {};
+  hand.forEach(c => { (bySuit[c.s] = bySuit[c.s] || []).push(c); });
+  const groups = Object.values(bySuit).sort((a, b) => b.length - a.length);
+  const top = groups[0];
+  if (top.length >= 2) {
+    return top.reduce((sum, c) => sum + (POINTS[c.r] || 0), 0);
+  }
+  return Math.max(...hand.map(c => POINTS[c.r] || 0));
 }
 
 function describeHand(hand) {
