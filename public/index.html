@@ -62,6 +62,38 @@
   .open-room-row{display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--panel-line); border-radius:7px; padding:9px 12px; margin-bottom:7px; font-size:13px;}
   .open-room-row .meta{color:var(--muted); font-size:11.5px;}
 
+  /* ===== Вкладки лобби ===== */
+  .lobby-tabs{display:flex; gap:8px; flex-wrap:wrap;}
+  .lobby-tab{
+    font-family:var(--font-display); font-size:12.5px; letter-spacing:0.03em;
+    padding:7px 16px; border-radius:20px; border:1px solid var(--panel-line);
+    color:var(--muted); cursor:pointer; background:var(--surface);
+  }
+  .lobby-tab.active{color:var(--gold); border-color:var(--gold-dim); background:rgba(198,161,91,0.1);}
+
+  /* ===== Карточки столов (мини-превью со столом и аватарками) ===== */
+  .table-cards-list{margin-top:14px; display:grid; grid-template-columns:1fr; gap:14px;}
+  @media(min-width:640px){ .table-cards-list{grid-template-columns:1fr 1fr;} }
+  .table-card{background:var(--surface); border:1px solid var(--panel-line); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:10px;}
+  .table-card-preview{
+    position:relative; height:92px; border-radius:60px;
+    background:radial-gradient(ellipse at center, var(--felt-1) 0%, var(--felt-2) 78%);
+    border:2px solid var(--gold-dim);
+  }
+  .table-card-preview .mini-avatar{
+    position:absolute; transform:translate(-50%,-50%);
+    width:30px; height:30px; border-radius:50%; overflow:hidden;
+    background:var(--panel); border:1px solid var(--gold-dim);
+    display:flex; align-items:center; justify-content:center;
+    font-family:var(--font-display); font-weight:700; color:var(--gold); font-size:11px;
+  }
+  .table-card-preview .mini-avatar img{width:100%; height:100%; object-fit:cover;}
+  .table-card-info{display:flex; justify-content:space-between; align-items:flex-end; gap:8px;}
+  .table-card-info h4{margin:0 0 4px; font-family:var(--font-display); font-size:15px; color:var(--ivory); display:flex; align-items:center; gap:6px;}
+  .table-card-info .meta{color:var(--muted); font-size:11.5px; line-height:1.6;}
+  .table-card-star{cursor:pointer; color:var(--panel-line); font-size:16px;}
+  .table-card-star.active{color:var(--gold);}
+
   .admin-table{width:100%; border-collapse:collapse; font-size:12.5px;}
   .admin-table th{text-align:left; color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:0.06em; padding:8px 8px; border-bottom:1px solid var(--panel-line);}
   .admin-table td{padding:8px 8px; border-bottom:1px solid rgba(30,74,56,0.5); vertical-align:middle;}
@@ -97,23 +129,56 @@
   .pot-amt{font-family:var(--font-mono); font-weight:700; font-size:26px; color:var(--gold);}
   .pot-bet{font-size:11px; color:var(--ivory); margin-top:4px;}
   .phase-tag{display:inline-block; margin-top:6px; font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(198,161,91,0.15); color:var(--gold);}
-  .seats{position:relative; display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; z-index:2;}
-  @media(max-width:700px){ .seats{grid-template-columns:1fr 1fr;} }
-  .seat{background:rgba(10,6,3,0.6); border:1px solid rgba(198,161,91,0.18); border-radius:10px; padding:10px; min-height:118px; display:flex; flex-direction:column; justify-content:space-between;}
-  .seat.empty{align-items:center; justify-content:center; color:var(--muted); font-size:12px; border-style:dashed;}
-  .seat.me{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold) inset;}
-  .seat.turn{border-color:var(--green); box-shadow:0 0 14px rgba(76,175,125,0.35);}
-  .seat.folded{opacity:0.45;}
-  .seat-head{display:flex; justify-content:space-between; align-items:baseline; gap:6px;}
-  .seat-name{font-size:13px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .seat-chips{font-family:var(--font-mono); font-size:12px; color:var(--gold); white-space:nowrap;}
-  .seat-status{font-size:10px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; margin-top:2px;}
-  .seat-status.folded-txt{color:var(--red);}
-  .seat-status.turn-txt{color:var(--green);}
-  .hand-cards{display:flex; gap:4px; margin-top:8px;}
-  .mini-card{width:26px; height:36px; background:var(--card-bg); border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:11px; color:#222; box-shadow:0 1px 3px rgba(0,0,0,0.4);}
+  .pot-chips-stack{display:flex; justify-content:center; margin-top:8px;}
+  .pot-chip{width:20px; height:20px; border-radius:50%; border:2px solid var(--gold-dim); background:var(--surface); margin-left:-8px; box-shadow:0 2px 4px rgba(0,0,0,0.5);}
+  .pot-chip:first-child{margin-left:0;}
+  .pot-chip.c1{border-color:var(--red);}
+  .pot-chip.c2{border-color:#2c2c2c;}
+  .pot-chip.c3{border-color:var(--gold);}
+
+  /* ===== Круговая рассадка игроков ===== */
+  .seats{position:relative; height:320px; z-index:2;}
+  @media(max-width:700px){ .seats{height:380px;} }
+  .seat{
+    position:absolute; transform:translate(-50%,-50%);
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    width:96px; text-align:center;
+  }
+  .seat.empty{ width:60px; color:var(--muted); font-size:10px; }
+  .avatar-circle{
+    width:52px; height:52px; border-radius:50%; overflow:hidden; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--surface); border:2px solid var(--panel-line);
+    font-family:var(--font-display); font-weight:700; color:var(--gold); font-size:18px;
+  }
+  .avatar-circle img{width:100%; height:100%; object-fit:cover;}
+  .avatar-circle.sm{width:32px; height:32px; font-size:12px; border-width:1px;}
+  .avatar-circle.lg{width:76px; height:76px; font-size:26px;}
+  .seat.empty .avatar-circle{width:40px; height:40px; border-style:dashed; opacity:0.5;}
+  .seat.me .avatar-circle{border-color:var(--gold); box-shadow:0 0 0 2px rgba(198,161,91,0.35);}
+  .seat.turn .avatar-circle{border-color:var(--green); box-shadow:0 0 14px rgba(76,175,125,0.55);}
+  .seat.folded{opacity:0.4;}
+  .seat-name-tag{
+    background:rgba(0,0,0,0.75); border:1px solid var(--panel-line); border-radius:6px;
+    padding:1px 8px; font-size:11px; font-weight:700; white-space:nowrap; max-width:96px; overflow:hidden; text-overflow:ellipsis;
+  }
+  .seat-chips-tag{font-family:var(--font-mono); font-size:10.5px; color:var(--gold); white-space:nowrap;}
+  .seat-status-tag{font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;}
+  .seat-status-tag.folded-txt{color:var(--red);}
+  .seat-status-tag.turn-txt{color:var(--green);}
+  .hand-cards{display:flex; gap:2px; margin-top:1px;}
+  .mini-card{width:20px; height:28px; background:var(--card-bg); border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:9px; color:#222; box-shadow:0 1px 3px rgba(0,0,0,0.4);}
   .mini-card.red{color:var(--red);}
   .mini-card.back{background:repeating-linear-gradient(45deg, #5C2430, #5C2430 4px, #3A1620 4px, #3A1620 8px); border:1px solid var(--gold-dim);}
+
+  /* ===== Таймер хода ===== */
+  .turn-timer{
+    font-family:var(--font-mono); font-size:12px; color:var(--green);
+    background:rgba(31,122,77,0.15); border:1px solid var(--green); border-radius:20px;
+    padding:4px 12px; display:inline-block; margin-bottom:8px;
+  }
+  .turn-timer.low{color:var(--red); border-color:var(--red); background:rgba(214,69,80,0.15);}
+
   .my-hand-bar{margin-top:16px; background:var(--panel); border:1px solid var(--panel-line); border-radius:12px; padding:14px 16px; width:100%; max-width:960px;}
   .my-hand-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;}
   .my-hand-title{font-family:var(--font-display); font-size:13px; letter-spacing:0.05em; color:var(--gold);}
@@ -163,7 +228,11 @@
   }
   .drawer.open{transform:translateX(0);}
   .drawer-head{display:flex; align-items:center; gap:10px; padding-bottom:16px; margin-bottom:10px; border-bottom:1px solid var(--panel-line);}
-  .drawer-avatar{width:40px; height:40px; border-radius:50%; background:var(--surface); border:1px solid var(--gold-dim); display:flex; align-items:center; justify-content:center; color:var(--gold); font-family:var(--font-display); font-weight:700;}
+  .avatar-edit-badge{
+    position:absolute; bottom:-2px; right:-2px; width:22px; height:22px; border-radius:50%;
+    background:var(--gold); color:#231607; display:flex; align-items:center; justify-content:center;
+    font-size:11px; cursor:pointer; border:2px solid var(--panel);
+  }
   .drawer-name{font-size:14px; font-weight:700;}
   .drawer-role{font-size:11px; color:var(--gold);}
   .drawer-item{
@@ -212,7 +281,11 @@
   <div class="drawer-bg" id="drawerBg"></div>
   <div class="drawer" id="drawer">
     <div class="drawer-head">
-      <div class="drawer-avatar" id="drawerAvatar">?</div>
+      <div style="position:relative;">
+        <div class="avatar-circle lg" id="drawerAvatar">?</div>
+        <label for="avatarFileInput" class="avatar-edit-badge" title="Изменить фото">✎</label>
+        <input type="file" id="avatarFileInput" accept="image/png,image/jpeg,image/webp" style="display:none;">
+      </div>
       <div>
         <div class="drawer-name" id="drawerName"></div>
         <div class="drawer-role" id="drawerRole"></div>
@@ -257,19 +330,23 @@
   </div>
 
   <!-- DASHBOARD -->
-  <div id="dashView" class="limited" style="display:none;">
+  <div id="dashView" class="wide" style="display:none;">
     <div class="card-panel">
       <h3>Ваш кошелёк</h3>
       <div class="dash-balance"><div class="flip-row" id="dashBalanceDigits"></div><span style="color:var(--muted); font-size:12px;">фишек</span></div>
-      <p class="hint" style="margin-top:10px;">Пополнение и списание фишек делает только администратор клуба вручную.</p>
+      <p class="hint" style="margin-top:10px;">Пополнение и списание фишек делает только администратор клуба вручную. Когда садитесь за стол — уходит весь баланс кошелька.</p>
     </div>
     <div class="card-panel">
-      <h3>Играть</h3>
-      <div class="dash-actions">
-        <button class="btn" id="createTableBtn">Создать стол</button>
+      <div class="lobby-tabs">
+        <div class="lobby-tab active" data-lobbytab="all">Все столы</div>
+        <div class="lobby-tab" data-lobbytab="mine">Мои столы</div>
+        <div class="lobby-tab" data-lobbytab="fav">Избранное</div>
+      </div>
+      <div class="dash-actions" style="margin-top:14px;">
+        <button class="btn" id="createTableBtn">+ Создать стол</button>
         <button class="btn secondary" id="refreshRoomsBtn">Обновить список</button>
       </div>
-      <div class="open-rooms-list" id="openRoomsList"></div>
+      <div class="table-cards-list" id="openRoomsList"></div>
       <label style="margin-top:16px;">Или войти по коду</label>
       <input type="text" id="joinCodeInput" maxlength="6" placeholder="Код стола" style="text-transform:uppercase;">
       <button class="btn secondary" id="joinByCodeBtn">Присоединиться</button>
@@ -361,6 +438,7 @@
       <div class="pot-amt" id="potAmt">0</div>
       <div class="pot-bet" id="betAmt"></div>
       <div class="phase-tag" id="phaseTag"></div>
+      <div class="pot-chips-stack" id="potChipsStack"></div>
     </div>
   </div>
   <div class="my-hand-bar" id="myHandBar" style="display:none;">
@@ -369,6 +447,7 @@
       <div class="combo-tag" id="comboTag" style="display:none;"></div>
     </div>
     <div class="big-cards" id="myCards"></div>
+    <div class="turn-timer" id="turnTimerBadge" style="display:none;"></div>
     <div id="actionZone"></div>
   </div>
   <div class="log" id="logBox" style="display:none;"></div>
@@ -516,10 +595,49 @@ function renderTopbar(){
   right.innerHTML = `<div class="icon-btn" id="tbCashier" title="Касса">💳</div>`;
   document.getElementById('tbCashier').addEventListener('click', openCashier);
 
-  document.getElementById('drawerAvatar').textContent = me.username.slice(0,1).toUpperCase();
+  const drawerAv = document.getElementById('drawerAvatar');
+  const letter = me.username.slice(0,1).toUpperCase();
+  drawerAv.innerHTML = me.avatar ? `<img src="${me.avatar}" alt="">` : letter;
   document.getElementById('drawerName').textContent = me.username;
   document.getElementById('drawerRole').textContent = me.isAdmin ? 'Администратор' : 'Игрок';
   document.getElementById('drwAdmin').style.display = me.isAdmin ? '' : 'none';
+}
+
+/* ===================== ЗАГРУЗКА ФОТО ПРОФИЛЯ ===================== */
+document.getElementById('avatarFileInput').addEventListener('change', async (e)=>{
+  const file = e.target.files[0];
+  if(!file) return;
+  try{
+    const dataUrl = await resizeImageToDataUrl(file, 256);
+    await api('/api/me/avatar', 'POST', {imageData: dataUrl});
+    me.avatar = dataUrl;
+    renderTopbar();
+  }catch(err){
+    alert('Не удалось загрузить фото: ' + err.message);
+  }
+  e.target.value = '';
+});
+
+function resizeImageToDataUrl(file, maxSize){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Не удалось прочитать файл.'));
+    reader.onload = () => {
+      img.onerror = () => reject(new Error('Файл не похож на изображение.'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > h){ if(w > maxSize){ h = Math.round(h*maxSize/w); w = maxSize; } }
+        else { if(h > maxSize){ w = Math.round(w*maxSize/h); h = maxSize; } }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.82));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 /* ===================== DASHBOARD ===================== */
@@ -540,18 +658,74 @@ function renderDashBalance(){
     const d = document.createElement('div'); d.className = 'flip-digit'; d.textContent = ch; balEl.appendChild(d);
   });
 }
+function avatarHtml(avatarUrl, username, sizeClass){
+  const letter = (username||'?').slice(0,1).toUpperCase();
+  const cls = 'avatar-circle' + (sizeClass?(' '+sizeClass):'');
+  if(avatarUrl) return `<div class="${cls}"><img src="${avatarUrl}" alt=""></div>`;
+  return `<div class="${cls}">${letter}</div>`;
+}
+function miniTableHtml(players, maxSeats){
+  const N = Math.max(maxSeats||6, 1);
+  let dots = '';
+  (players||[]).slice(0, N).forEach((p, i) => {
+    const angle = (-90 + i*(360/N)) * Math.PI/180;
+    const left = 50 + 38*Math.cos(angle);
+    const top = 50 + 34*Math.sin(angle);
+    const letter = (p.username||'?').slice(0,1).toUpperCase();
+    const inner = p.avatar ? `<img src="${p.avatar}" alt="">` : letter;
+    dots += `<div class="mini-avatar" style="left:${left}%; top:${top}%;">${inner}</div>`;
+  });
+  return `<div class="table-card-preview">${dots}</div>`;
+}
+
+let lastLobbyList = [];
+let lobbyTab = 'all';
+let favoriteTables = new Set();
+try{ favoriteTables = new Set(JSON.parse(localStorage.getItem('svara_favtables') || '[]')); }catch(e){}
+
+document.querySelectorAll('[data-lobbytab]').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-lobbytab]').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    lobbyTab = t.dataset.lobbytab;
+    renderOpenRooms(lastLobbyList);
+  });
+});
+
+function applyLobbyFilter(list){
+  if(lobbyTab === 'mine') return list.filter(r => (r.players||[]).some(p=>p.username.toLowerCase()===me.username.toLowerCase()));
+  if(lobbyTab === 'fav') return list.filter(r => favoriteTables.has(r.code));
+  return list;
+}
+
 function renderOpenRooms(list){
+  lastLobbyList = list;
   const el = document.getElementById('openRoomsList');
-  if(!list.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px; margin-top:8px;">Открытых столов пока нет — создайте свой.</div>'; return; }
-  el.innerHTML = list.map(r => `
-    <div class="open-room-row">
-      <div>Стол <b style="color:var(--gold); font-family:var(--font-mono);">${r.code}</b>
-        <div class="meta">хост: ${r.hostName} · игроков: ${r.playerCount}/6 · анте ${r.betUnit}</div>
+  const filtered = applyLobbyFilter(list);
+  if(!filtered.length){
+    const msg = lobbyTab==='mine' ? 'Вы пока не сидите ни за одним столом.' : lobbyTab==='fav' ? 'Нет избранных столов — нажмите на звёздочку у стола, чтобы добавить.' : 'Открытых столов пока нет — создайте свой.';
+    el.innerHTML = `<div style="color:var(--muted); font-size:12.5px; margin-top:8px;">${msg}</div>`;
+    return;
+  }
+  el.innerHTML = filtered.map(r => `
+    <div class="table-card">
+      ${miniTableHtml(r.players, r.maxSeats)}
+      <div class="table-card-info">
+        <div>
+          <h4>Стол ${r.code} <span class="table-card-star ${favoriteTables.has(r.code)?'active':''}" data-star="${r.code}">★</span></h4>
+          <div class="meta">хост: ${r.hostName} · ${r.playerCount}/${r.maxSeats||6} игроков · анте ${r.betUnit}</div>
+        </div>
+        <button class="btn small secondary" data-joincode="${r.code}">Сесть</button>
       </div>
-      <button class="btn small secondary" data-joincode="${r.code}">Сесть</button>
     </div>
   `).join('');
-  el.querySelectorAll('[data-joincode]').forEach(b => b.addEventListener('click', ()=> promptBuyInAndJoin(b.dataset.joincode)));
+  el.querySelectorAll('[data-joincode]').forEach(b => b.addEventListener('click', ()=> joinTableDirect(b.dataset.joincode)));
+  el.querySelectorAll('[data-star]').forEach(b => b.addEventListener('click', ()=>{
+    const code = b.dataset.star;
+    if(favoriteTables.has(code)) favoriteTables.delete(code); else favoriteTables.add(code);
+    try{ localStorage.setItem('svara_favtables', JSON.stringify([...favoriteTables])); }catch(e){}
+    renderOpenRooms(lastLobbyList);
+  }));
 }
 document.getElementById('refreshRoomsBtn').addEventListener('click', ()=> socket.emit('lobby:join'));
 
@@ -681,13 +855,9 @@ document.getElementById('joinByCodeBtn').addEventListener('click', ()=>{
   const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
   const errEl = document.getElementById('dashErr'); errEl.textContent = "";
   if(!code){ errEl.textContent = "Введите код стола."; return; }
-  promptBuyInAndJoin(code);
+  joinTableDirect(code);
 });
 
-const CHIP_DENOMS = [100, 250, 500, 1000, 2500, 5000];
-function chipGridHtml(inputId){
-  return `<div class="chip-grid">${CHIP_DENOMS.map(v => `<div class="chip-btn" data-chipfor="${inputId}" data-val="${v}">${v}</div>`).join('')}</div>`;
-}
 function wireChipGrid(inputId){
   document.querySelectorAll(`[data-chipfor="${inputId}"]`).forEach(btn=>{
     btn.addEventListener('click', ()=>{
@@ -701,48 +871,40 @@ function wireChipGrid(inputId){
 document.getElementById('createTableBtn').addEventListener('click', ()=>{
   showModal(`
     <h4>Новый стол</h4>
+    <p class="hint">Вы сядете за стол со всем текущим балансом кошелька — отдельно выбирать сумму бай-ина не нужно.</p>
     <label>Ставка/анте</label><input type="number" id="mBetUnit" value="20" min="5" step="5">
-    <label>Выберите размер бай-ина</label>
-    ${chipGridHtml('mBuyIn')}
-    <input type="number" id="mBuyIn" value="500" min="20" step="10">
+    <label>Количество мест за столом</label>
+    <div class="chip-grid" id="seatCountGrid" style="grid-template-columns:repeat(4,1fr);"></div>
     <div class="err" id="mErr"></div>
     <button class="btn" id="mConfirm">Создать и сесть</button>
     <button class="btn secondary" id="mCancel">Отмена</button>
   `);
-  wireChipGrid('mBuyIn');
+  const seatOptions = [2,3,4,6];
+  document.getElementById('seatCountGrid').innerHTML = seatOptions.map(v=>`<div class="chip-btn${v===6?' selected':''}" data-seatval="${v}">${v}</div>`).join('');
+  let chosenSeats = 6;
+  document.querySelectorAll('[data-seatval]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll('[data-seatval]').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      chosenSeats = parseInt(btn.dataset.seatval);
+    });
+  });
   document.getElementById('mCancel').addEventListener('click', closeModal);
   document.getElementById('mConfirm').addEventListener('click', ()=>{
     const betUnit = parseInt(document.getElementById('mBetUnit').value) || 20;
-    const buyIn = parseInt(document.getElementById('mBuyIn').value) || 200;
     const mErr = document.getElementById('mErr');
-    socket.emit('table:create', {betUnit, buyIn}, (res)=>{
+    socket.emit('table:create', {betUnit, maxSeats: chosenSeats}, (res)=>{
       if(!res.ok){ mErr.textContent = res.error; return; }
       closeModal(); roomCode = res.code; enterTable();
-      me.chips -= buyIn; // оптимистично, точная сумма подтянется при следующем /api/me
     });
   });
 });
 
-function promptBuyInAndJoin(code){
-  const errEl = document.getElementById('dashErr');
-  showModal(`
-    <h4>Сесть за стол ${code}</h4>
-    <label>Выберите размер бай-ина</label>
-    ${chipGridHtml('mBuyIn2')}
-    <input type="number" id="mBuyIn2" value="500" min="10" step="10">
-    <div class="err" id="mErr2"></div>
-    <button class="btn" id="mConfirm2">Сесть за стол</button>
-    <button class="btn secondary" id="mCancel2">Отмена</button>
-  `);
-  wireChipGrid('mBuyIn2');
-  document.getElementById('mCancel2').addEventListener('click', closeModal);
-  document.getElementById('mConfirm2').addEventListener('click', ()=>{
-    const buyIn = parseInt(document.getElementById('mBuyIn2').value) || 100;
-    const mErr = document.getElementById('mErr2');
-    socket.emit('table:join', {code, buyIn}, (res)=>{
-      if(!res.ok){ mErr.textContent = res.error; return; }
-      closeModal(); roomCode = res.code; enterTable();
-    });
+function joinTableDirect(code){
+  const errEl = document.getElementById('dashErr'); if(errEl) errEl.textContent = "";
+  socket.emit('table:join', {code}, (res)=>{
+    if(!res.ok){ if(errEl) errEl.textContent = res.error; else alert(res.error); return; }
+    roomCode = res.code; enterTable();
   });
 }
 
@@ -924,6 +1086,31 @@ document.getElementById('refreshAdminTablesBtn').addEventListener('click', refre
 
 function suitClass(s){ return (s==='♥'||s==='♦') ? 'red' : ''; }
 
+/* ===================== ТАЙМЕР ХОДА ===================== */
+let turnTimerInterval = null;
+function updateTurnTimer(state){
+  const badge = document.getElementById('turnTimerBadge');
+  if(turnTimerInterval){ clearInterval(turnTimerInterval); turnTimerInterval = null; }
+
+  if(state.phase !== 'betting' || !state.turnDeadline){
+    badge.style.display = 'none';
+    return;
+  }
+  const turnSeat = state.seats[state.turnIndex];
+  const whoText = turnSeat && turnSeat.username === me.username ? 'Ваш ход' : `Ход игрока: ${turnSeat ? turnSeat.username : ''}`;
+
+  function tick(){
+    const secLeft = Math.max(0, Math.round((state.turnDeadline - Date.now())/1000));
+    badge.style.display = 'inline-block';
+    badge.textContent = `${whoText} · ${secLeft} сек`;
+    badge.className = 'turn-timer' + (secLeft <= 10 ? ' low' : '');
+    if(secLeft <= 0 && turnTimerInterval){ clearInterval(turnTimerInterval); turnTimerInterval = null; }
+  }
+  tick();
+  turnTimerInterval = setInterval(tick, 1000);
+}
+
+
 function renderSpectateHands(st){
   const panel = document.getElementById('spectatePanel');
   const seatsHtml = st.seats.map(s => {
@@ -959,6 +1146,8 @@ function render(state){
   document.getElementById('betAmt').textContent = state.currentHighBet ? `текущая ставка: ${state.currentHighBet}` : '';
   const phaseNames = {lobby:'Ожидание раздачи', betting:'Идёт торговля', handEnd:'Раздача завершена'};
   document.getElementById('phaseTag').textContent = phaseNames[state.phase] || '';
+  document.getElementById('potChipsStack').innerHTML = state.pot > 0
+    ? '<div class="pot-chip c1"></div><div class="pot-chip c2"></div><div class="pot-chip c3"></div>' : '';
 
   const banner = document.getElementById('showdownBanner');
   banner.innerHTML = (state.phase === 'handEnd' && state.lastWinner)
@@ -967,9 +1156,25 @@ function render(state){
   const grid = document.getElementById('seatsGrid');
   grid.innerHTML = '';
   const myIdx = state.seats.findIndex(s => s && s.username === me.username);
-  state.seats.forEach((s, i) => {
+  const N = state.maxSeats || state.seats.length;
+  const startIdx = myIdx >= 0 ? myIdx : 0;
+
+  for(let k=0; k<state.seats.length; k++){
+    const i = (startIdx + k) % state.seats.length;
+    const s = state.seats[i];
+    const angle = (90 + k*(360/N)) * Math.PI/180;
+    const left = 50 + 42*Math.cos(angle);
+    const top = 50 + 38*Math.sin(angle);
     const div = document.createElement('div');
-    if(!s){ div.className = 'seat empty'; div.textContent = 'Свободное место'; grid.appendChild(div); return; }
+    div.style.left = left + '%';
+    div.style.top = top + '%';
+
+    if(!s){
+      div.className = 'seat empty';
+      div.innerHTML = `<div class="avatar-circle" style="border-style:dashed; opacity:0.5;">+</div>`;
+      grid.appendChild(div);
+      continue;
+    }
     let cls = 'seat';
     if(i === myIdx) cls += ' me';
     if(state.phase==='betting' && i===state.turnIndex) cls += ' turn';
@@ -977,10 +1182,10 @@ function render(state){
     div.className = cls;
 
     let statusTxt = '';
-    if(s.folded) statusTxt = '<span class="seat-status folded-txt">пас</span>';
-    else if(state.phase==='betting' && i===state.turnIndex) statusTxt = '<span class="seat-status turn-txt">ходит…</span>';
-    else if(s.inHand) statusTxt = `<span class="seat-status">поставил ${s.betThisRound}</span>`;
-    else statusTxt = '<span class="seat-status">за столом</span>';
+    if(s.folded) statusTxt = '<span class="seat-status-tag folded-txt">пас</span>';
+    else if(state.phase==='betting' && i===state.turnIndex) statusTxt = '<span class="seat-status-tag turn-txt">ходит…</span>';
+    else if(s.inHand) statusTxt = `<span class="seat-status-tag">поставил ${s.betThisRound}</span>`;
+    else statusTxt = '<span class="seat-status-tag">за столом</span>';
 
     let cardsHtml = '';
     if(s.inHand && s.hand && s.hand.length){
@@ -989,9 +1194,17 @@ function render(state){
         ? `<div class="hand-cards">${s.hand.map(c=>`<div class="mini-card ${suitClass(c.s)}">${c.r}${c.s}</div>`).join('')}</div>`
         : `<div class="hand-cards">${s.hand.map(()=>`<div class="mini-card back"></div>`).join('')}</div>`;
     }
-    div.innerHTML = `<div class="seat-head"><div class="seat-name">${s.username}${state.hostName===s.username?' 👑':''}</div><div class="seat-chips">${s.chips}</div></div>${statusTxt}${cardsHtml}`;
+    div.innerHTML = `
+      ${avatarHtml(s.avatar, s.username)}
+      <div class="seat-name-tag">${state.hostName===s.username?'👑 ':''}${s.username}</div>
+      <div class="seat-chips-tag">${s.chips}</div>
+      ${statusTxt}
+      ${cardsHtml}
+    `;
     grid.appendChild(div);
-  });
+  }
+
+  updateTurnTimer(state);
 
   const myCardsEl = document.getElementById('myCards');
   const comboTag = document.getElementById('comboTag');

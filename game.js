@@ -54,10 +54,11 @@ function emptySeats(n) {
   return Array.from({ length: n }, () => null);
 }
 
-function createRoom(code, betUnit, hostUsername) {
+function createRoom(code, betUnit, hostUsername, maxSeats) {
+  const n = [2, 3, 4, 5, 6].includes(maxSeats) ? maxSeats : 6;
   return {
-    code, betUnit, hostName: hostUsername,
-    seats: emptySeats(6),
+    code, betUnit, hostName: hostUsername, maxSeats: n,
+    seats: emptySeats(n),
     phase: 'lobby', // lobby | betting | handEnd
     pot: 0, currentHighBet: 0, turnIndex: null, dealerIndex: 0,
     handNumber: 0, lastWinner: null,
@@ -210,6 +211,7 @@ function redactForViewer(room, viewerUsername) {
     const reveal = isMe || (room.phase === 'handEnd' && !s.folded);
     return {
       username: s.username,
+      avatar: s.avatar || null,
       chips: s.chips,
       folded: s.folded,
       inHand: s.inHand,
@@ -218,10 +220,11 @@ function redactForViewer(room, viewerUsername) {
     };
   });
   return {
-    code: room.code, betUnit: room.betUnit, hostName: room.hostName,
+    code: room.code, betUnit: room.betUnit, hostName: room.hostName, maxSeats: room.maxSeats || room.seats.length,
     seats, phase: room.phase, pot: room.pot, currentHighBet: room.currentHighBet,
     turnIndex: room.turnIndex, handNumber: room.handNumber,
-    lastWinner: room.lastWinner, log: room.log.slice(-16)
+    lastWinner: room.lastWinner, log: room.log.slice(-16),
+    turnDeadline: room.turnDeadline || null
   };
 }
 
@@ -230,12 +233,12 @@ function fullStateForAdmin(room) {
   const seats = room.seats.map(s => {
     if (!s) return null;
     return {
-      username: s.username, chips: s.chips, folded: s.folded,
+      username: s.username, avatar: s.avatar || null, chips: s.chips, folded: s.folded,
       inHand: s.inHand, betThisRound: s.betThisRound, hand: s.hand || []
     };
   });
   return {
-    code: room.code, betUnit: room.betUnit, hostName: room.hostName,
+    code: room.code, betUnit: room.betUnit, hostName: room.hostName, maxSeats: room.maxSeats || room.seats.length,
     seats, phase: room.phase, pot: room.pot, currentHighBet: room.currentHighBet,
     turnIndex: room.turnIndex, handNumber: room.handNumber,
     lastWinner: room.lastWinner, log: room.log.slice(-30)

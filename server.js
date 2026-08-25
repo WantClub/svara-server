@@ -30,7 +30,7 @@ app.use(helmet({
   contentSecurityPolicy: false // отключаем строгую CSP, т.к. используем внешние шрифты/CDN сокетов
 }));
 app.use(cors(corsOptions));
-app.use(express.json());
+app.use(express.json({ limit: '1mb' })); // увеличенный лимит — нужен для загрузки фото профиля
 app.use(express.static(path.join(__dirname, 'public')));
 
 const server = http.createServer(app);
@@ -53,7 +53,7 @@ function getUserByUsername(username) {
   return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
 }
 function toPublicUser(u) {
-  return { username: u.username, chips: u.chips, isAdmin: !!u.is_admin, banned: !!u.banned };
+  return { username: u.username, chips: u.chips, isAdmin: !!u.is_admin, banned: !!u.banned, avatar: u.avatar || null };
 }
 
 function authMiddleware(req, res, next) {
@@ -109,6 +109,19 @@ app.post('/api/login', authLimiter, (req, res) => {
 
 app.get('/api/me', authMiddleware, (req, res) => {
   res.json({ user: toPublicUser(req.dbUser) });
+});
+
+app.post('/api/me/avatar', authMiddleware, (req, res) => {
+  const { imageData } = req.body || {};
+  if (!imageData || typeof imageData !== 'string') return res.status(400).json({ error: 'Нет данных изображения.' });
+  if (!/^data:image\/(png|jpeg|jpg|webp);base64,/.test(imageData)) {
+    return res.status(400).json({ error: 'Поддерживаются только PNG, JPEG и WEBP.' });
+  }
+  if (imageData.length > 700000) { // ~500 КБ после base64 — достаточно для аватарки после сжатия на клиенте
+    return res.status(400).json({ error: 'Файл слишком большой. Попробуйте изображение поменьше.' });
+  }
+  db.prepare('UPDATE users SET avatar = ? WHERE username = ?').run(imageData, req.dbUser.username);
+  res.json({ ok: true, avatar: imageData });
 });
 
 // ===================== ADMIN ROUTES =====================
@@ -374,7 +387,9 @@ function broadcastLobby() {
       hostName: r.hostName,
       betUnit: r.betUnit,
       playerCount: game.seatedIndices(r).length,
-      phase: r.phase
+      maxSeats: r.maxSeats || r.seats.length,
+      phase: r.phase,
+      players: r.seats.filter(Boolean).map(s => ({ username: s.username, avatar: s.avatar || null }))
     }));
   io.to('lobby').emit('lobby:rooms', list);
 }
@@ -388,6 +403,46 @@ function cashOutSeat(room, idx) {
   }
   room.log.push(`${s.username} встал(а) из-за стола (забрал(а) ${s.chips} фишек).`);
   room.seats[idx] = null;
+}
+
+// ===================== ИСТОРИЯ РАЗДАЧ =====================
+function logHandHistoryIfNeeded(room) {
+  if (room.phase !== 'handEnd') return;
+  if (room.lastLoggedHand === room.handNumber) return; // уже записали эту раздачу
+  room.lastLoggedHand = room.handNumber;
+  const starts = room.handStartChips || {};
+  const potSize = room.lastPotSize || 0;
+  room.seats.forEach(s => {
+    if (!s) return;
+    const startChips = starts[s.username];
+    if (startChips === undefined) return; // не участвовал в этой раздаче
+    const delta = s.chips - startChips;
+    db.prepare('INSERT INTO hand_history (username, room_code, hand_number, delta, won, pot_size, created_at) VALUES (?,?,?,?,?,?,?)')
+      .run(s.username, room.code, room.handNumber, delta, delta > 0 ? 1 : 0, potSize, Date.now());
+  });
+}
+
+// ===================== ТАЙМЕР ХОДА (авто-пас, если не успел сходить) =====================
+const TURN_SECONDS = 30;
+function scheduleTurnTimer(room) {
+  if (room.turnTimer) { clearTimeout(room.turnTimer); room.turnTimer = null; }
+  if (room.phase !== 'betting' || room.turnIndex === null || room.turnIndex === undefined) {
+    room.turnDeadline = null;
+    return;
+  }
+  room.turnDeadline = Date.now() + TURN_SECONDS * 1000;
+  const seatIdx = room.turnIndex;
+  room.turnTimer = setTimeout(() => {
+    const fresh = rooms.get(room.code);
+    if (!fresh || fresh.phase !== 'betting' || fresh.turnIndex !== seatIdx) return;
+    const result = game.actFold(fresh, seatIdx);
+    if (result.ok) {
+      fresh.log.push(`⏱ Автопас по истечении времени хода.`);
+      logHandHistoryIfNeeded(fresh);
+      scheduleTurnTimer(fresh);
+      broadcastRoom(fresh.code);
+    }
+  }, TURN_SECONDS * 1000);
 }
 
 // ===================== SOCKET.IO AUTH =====================
@@ -423,18 +478,20 @@ io.on('connection', (socket) => {
     broadcastLobby();
   });
 
-  socket.on('table:create', ({ betUnit, buyIn }, cb) => {
+  socket.on('table:create', ({ betUnit, maxSeats }, cb) => {
     const bu = Math.max(5, parseInt(betUnit) || 20);
-    const bi = Math.max(bu, parseInt(buyIn) || bu * 10);
+    const seatCount = [2, 3, 4, 5, 6].includes(parseInt(maxSeats)) ? parseInt(maxSeats) : 6;
     const user = getUserByUsername(socket.username);
     if (!user) return cb({ ok: false, error: 'Пользователь не найден.' });
-    if (bi > user.chips) return cb({ ok: false, error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+    if (user.chips <= 0) return cb({ ok: false, error: 'На балансе нет фишек — обратитесь к администратору клуба.' });
+    if (user.chips < bu) return cb({ ok: false, error: `Недостаточно фишек для этой ставки. На балансе: ${user.chips}.` });
 
-    db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(bi, user.username);
+    const bi = user.chips; // садимся всем балансом кошелька
+    db.prepare('UPDATE users SET chips = 0 WHERE username = ?').run(user.username);
 
     const code = genCode();
-    const room = game.createRoom(code, bu, socket.username);
-    room.seats[0] = { username: socket.username, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, socketId: socket.id };
+    const room = game.createRoom(code, bu, socket.username, seatCount);
+    room.seats[0] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, socketId: socket.id };
     rooms.set(code, room);
 
     socket.join('table:' + code);
@@ -445,7 +502,7 @@ io.on('connection', (socket) => {
     broadcastLobby();
   });
 
-  socket.on('table:join', ({ code, buyIn }, cb) => {
+  socket.on('table:join', ({ code }, cb) => {
     const room = rooms.get(code);
     if (!room) return cb({ ok: false, error: 'Стол не найден.' });
 
@@ -462,14 +519,16 @@ io.on('connection', (socket) => {
     const emptyIdx = room.seats.findIndex(s => !s);
     if (emptyIdx < 0) return cb({ ok: false, error: 'Стол уже заполнен.' });
 
-    const bi = Math.max(room.betUnit, parseInt(buyIn) || room.betUnit * 10);
     const user = getUserByUsername(socket.username);
-    if (bi > user.chips) return cb({ ok: false, error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+    if (!user) return cb({ ok: false, error: 'Пользователь не найден.' });
+    if (user.chips <= 0) return cb({ ok: false, error: 'На балансе нет фишек — обратитесь к администратору клуба.' });
+    if (user.chips < room.betUnit) return cb({ ok: false, error: `Недостаточно фишек для этого стола (нужно минимум ${room.betUnit}). На балансе: ${user.chips}.` });
 
-    db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(bi, user.username);
+    const bi = user.chips; // садимся всем балансом кошелька
+    db.prepare('UPDATE users SET chips = 0 WHERE username = ?').run(user.username);
 
-    room.seats[emptyIdx] = { username: socket.username, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, socketId: socket.id };
-    room.log.push(`${socket.username} присоединился(-лась) за стол (бай-ин ${bi}).`);
+    room.seats[emptyIdx] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, socketId: socket.id };
+    room.log.push(`${socket.username} присоединился(-лась) за стол (${bi} фишек).`);
 
     socket.join('table:' + code);
     socketMeta.set(socket.id, { username: socket.username, roomCode: code });
@@ -481,22 +540,6 @@ io.on('connection', (socket) => {
 
   function mySeatIndex(room) {
     return room.seats.findIndex(s => s && s.username === socket.username);
-  }
-
-  function logHandHistoryIfNeeded(room) {
-    if (room.phase !== 'handEnd') return;
-    if (room.lastLoggedHand === room.handNumber) return; // уже записали эту раздачу
-    room.lastLoggedHand = room.handNumber;
-    const starts = room.handStartChips || {};
-    const potSize = room.lastPotSize || 0;
-    room.seats.forEach(s => {
-      if (!s) return;
-      const startChips = starts[s.username];
-      if (startChips === undefined) return; // не участвовал в этой раздаче
-      const delta = s.chips - startChips;
-      db.prepare('INSERT INTO hand_history (username, room_code, hand_number, delta, won, pot_size, created_at) VALUES (?,?,?,?,?,?,?)')
-        .run(s.username, room.code, room.handNumber, delta, delta > 0 ? 1 : 0, potSize, Date.now());
-    });
   }
 
   socket.on('table:action', ({ type }, cb) => {
@@ -515,6 +558,7 @@ io.on('connection', (socket) => {
     else result = { ok: false, error: 'Неизвестное действие.' };
 
     if (result.ok) logHandHistoryIfNeeded(room);
+    if (result.ok) scheduleTurnTimer(room);
     if (cb) cb(result);
     if (result.ok) broadcastRoom(room.code);
   });
