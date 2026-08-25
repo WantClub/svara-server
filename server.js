@@ -15,6 +15,9 @@ const slots = require('./slots');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const PORT = process.env.PORT || 3000;
+// Приветственный бонус фишками клуба для каждого нового зарегистрированного
+// игрока — не реальные деньги, просто стартовый баланс для первой игры.
+const WELCOME_BONUS_CHIPS = 100;
 // Домен(ы), которым разрешено обращаться к API/сокетам. Через запятую, если несколько.
 // Пока не задано (пусто) — разрешено всё, чтобы не сломать локальную проверку.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -91,7 +94,7 @@ app.post('/api/register', authLimiter, (req, res) => {
   const passwordHash = bcrypt.hashSync(password, 10);
 
   db.prepare('INSERT INTO users (username, password_hash, chips, is_admin, banned, created_at) VALUES (?,?,?,?,?,?)')
-    .run(username, passwordHash, 0, isFirst ? 1 : 0, 0, Date.now());
+    .run(username, passwordHash, WELCOME_BONUS_CHIPS, isFirst ? 1 : 0, 0, Date.now());
 
   const user = getUserByUsername(username);
   res.json({ token: signToken(user.username), user: toPublicUser(user), firstAdmin: isFirst });
