@@ -11,6 +11,7 @@ const path = require('path');
 
 const db = require('./db');
 const game = require('./game');
+const slots = require('./slots');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const PORT = process.env.PORT || 3000;
@@ -245,6 +246,34 @@ app.post('/api/admin/sports/resolve', authMiddleware, adminMiddleware, (req, res
 app.get('/api/admin/sports/matches', authMiddleware, adminMiddleware, (req, res) => {
   const rows = db.prepare('SELECT * FROM sport_matches ORDER BY created_at DESC').all();
   res.json({ matches: rows.map(toPublicMatch) });
+});
+
+// ===================== СЛОТЫ (фишки клуба, без реальных денег) =====================
+app.post('/api/slots/spin', authMiddleware, (req, res) => {
+  const bet = parseInt(req.body?.bet);
+  if (!Number.isFinite(bet) || bet <= 0) return res.status(400).json({ error: 'Некорректная ставка.' });
+
+  const user = getUserByUsername(req.dbUser.username);
+  if (bet > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+
+  const result = slots.spinSlots(bet);
+  const net = result.payout - bet;
+  db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(net, user.username);
+  db.prepare('INSERT INTO slot_spins (username, bet, r1, r2, r3, payout, created_at) VALUES (?,?,?,?,?,?,?)')
+    .run(user.username, bet, result.reels[0], result.reels[1], result.reels[2], result.payout, Date.now());
+
+  const updated = getUserByUsername(user.username);
+  res.json({ ok: true, reels: result.reels, payout: result.payout, chips: updated.chips });
+});
+
+app.get('/api/slots/myspins', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM slot_spins WHERE username = ? COLLATE NOCASE ORDER BY id DESC LIMIT 15').all(req.dbUser.username);
+  res.json({ spins: rows });
+});
+
+app.get('/api/admin/slots/stats', authMiddleware, adminMiddleware, (req, res) => {
+  const row = db.prepare('SELECT COUNT(*) as spins, COALESCE(SUM(bet),0) as wagered, COALESCE(SUM(payout),0) as paid FROM slot_spins').get();
+  res.json({ spins: row.spins, wagered: row.wagered, paid: row.paid, net: row.wagered - row.paid });
 });
 
 // ===================== ИГРОВЫЕ КОМНАТЫ (в памяти сервера) =====================

@@ -182,6 +182,17 @@
   }
   .chip-btn:hover{border-color:var(--gold);}
   .chip-btn.selected{border:2px solid var(--gold); background:rgba(201,162,39,0.12); color:var(--gold);}
+
+  /* ===== Слоты ===== */
+  .slot-machine{background:var(--surface); border:2px solid var(--gold-dim); border-radius:12px; padding:20px; display:flex; justify-content:center; gap:10px; margin:14px 0;}
+  .reel{width:70px; height:80px; background:#000; border:1px solid var(--panel-line); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:34px;}
+  .reel.spinning{animation:reelSpin 0.15s linear infinite;}
+  @keyframes reelSpin{ 0%{transform:translateY(-6px);} 50%{transform:translateY(6px);} 100%{transform:translateY(-6px);} }
+  .slot-result{text-align:center; font-size:13.5px; min-height:20px; margin-bottom:8px;}
+  .slot-result.win{color:var(--green); font-weight:700;}
+  .slot-result.lose{color:var(--muted);}
+  .paytable{font-size:11.5px; color:var(--muted); line-height:1.8; margin-top:10px;}
+  .paytable b{color:var(--gold); font-family:var(--font-mono);}
 </style>
 </head>
 <body>
@@ -205,6 +216,7 @@
       </div>
     </div>
     <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> Лобби</div>
+    <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> Слоты</div>
     <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> Спорт</div>
     <div class="drawer-item" id="drwCashier"><span class="ic">💳</span> Касса</div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
@@ -263,6 +275,33 @@
   </div>
 
   <!-- SPORT -->
+  <!-- SLOTS -->
+  <div id="slotsView" class="limited" style="display:none;">
+    <div class="card-panel">
+      <h3>Слоты</h3>
+      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача около 91% — как в обычном игровом автомате.</p>
+      <div class="slot-machine">
+        <div class="reel" id="reel1">🍒</div>
+        <div class="reel" id="reel2">🍒</div>
+        <div class="reel" id="reel3">🍒</div>
+      </div>
+      <div class="slot-result" id="slotResult"></div>
+      <label>Ставка</label>
+      <div class="chip-grid" id="slotChipGrid"></div>
+      <input type="number" id="slotBetInput" value="50" min="1" step="10">
+      <button class="btn" id="slotSpinBtn" style="margin-top:14px;">Крутить</button>
+      <div class="paytable">
+        <div>🍒🍒🍒 — <b>×5</b> &nbsp; 🍋🍋🍋 — <b>×8</b> &nbsp; 🔔🔔🔔 — <b>×15</b></div>
+        <div>⭐⭐⭐ — <b>×35</b> &nbsp; 💎💎💎 — <b>×70</b> &nbsp; 7️⃣7️⃣7️⃣ — <b>×150</b></div>
+        <div>Любая пара одинаковых — <b>×0.65</b></div>
+      </div>
+    </div>
+    <div class="card-panel">
+      <h3>Последние спины</h3>
+      <div id="slotHistoryList"></div>
+    </div>
+  </div>
+
   <div id="sportView" class="limited" style="display:none;">
     <div class="card-panel">
       <h3>Спорт — ставки на фишки клуба</h3>
@@ -311,6 +350,10 @@
       <div class="err" id="spmErr"></div>
       <div id="spmAdminList" style="margin-top:16px;"></div>
     </div>
+    <div class="card-panel">
+      <h3>Слоты — статистика</h3>
+      <div class="stat-row" id="slotsStatRow"></div>
+    </div>
   </div>
 
   <!-- TABLE -->
@@ -353,7 +396,7 @@ let socket = null;
 let roomCode = "";
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','tableTop','feltEl','myHandBar','logBox','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','slotsView','tableTop','feltEl','myHandBar','logBox','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -387,6 +430,7 @@ document.getElementById('menuBtn').addEventListener('click', openDrawer);
 document.getElementById('drawerBg').addEventListener('click', closeDrawer);
 document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
 document.getElementById('drwSport').addEventListener('click', ()=>{ closeDrawer(); enterSport(); });
+document.getElementById('drwSlots').addEventListener('click', ()=>{ closeDrawer(); enterSlots(); });
 document.getElementById('drwCashier').addEventListener('click', ()=>{ closeDrawer(); openCashier(); });
 document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
@@ -585,6 +629,62 @@ async function refreshMyBets(){
   }).join('');
 }
 
+/* ===================== СЛОТЫ ===================== */
+const SLOT_BET_CHIPS = [10, 25, 50, 100, 250, 500];
+async function enterSlots(){
+  showOnly(['topbar','slotsView']);
+  renderTopbar();
+  const grid = document.getElementById('slotChipGrid');
+  grid.innerHTML = SLOT_BET_CHIPS.map(v => `<div class="chip-btn" data-chipfor="slotBetInput" data-val="${v}">${v}</div>`).join('');
+  wireChipGrid('slotBetInput');
+  document.getElementById('slotResult').textContent = '';
+  document.getElementById('slotResult').className = 'slot-result';
+  await refreshSlotHistory();
+}
+let slotSpinning = false;
+document.getElementById('slotSpinBtn').addEventListener('click', async ()=>{
+  if(slotSpinning) return;
+  const bet = parseInt(document.getElementById('slotBetInput').value) || 0;
+  const resultEl = document.getElementById('slotResult');
+  const btn = document.getElementById('slotSpinBtn');
+  if(bet <= 0){ resultEl.textContent = 'Введите ставку.'; resultEl.className = 'slot-result'; return; }
+  if(bet > me.chips){ resultEl.textContent = `Недостаточно фишек. На балансе: ${me.chips}.`; resultEl.className = 'slot-result'; return; }
+
+  slotSpinning = true; btn.disabled = true;
+  const reelEls = [document.getElementById('reel1'), document.getElementById('reel2'), document.getElementById('reel3')];
+  reelEls.forEach(r => r.classList.add('spinning'));
+  resultEl.textContent = 'Крутим…'; resultEl.className = 'slot-result';
+
+  let res;
+  try{ res = await api('/api/slots/spin', 'POST', {bet}); }
+  catch(e){
+    reelEls.forEach(r => r.classList.remove('spinning'));
+    resultEl.textContent = e.message; slotSpinning = false; btn.disabled = false; return;
+  }
+
+  await new Promise(r => setTimeout(r, 500)); // короткая анимация прокрутки
+  reelEls.forEach((el, i) => { el.classList.remove('spinning'); el.textContent = res.reels[i]; });
+  me.chips = res.chips;
+
+  if(res.payout > bet){ resultEl.textContent = `Выигрыш! +${res.payout - bet} фишек`; resultEl.className = 'slot-result win'; }
+  else if(res.payout > 0){ resultEl.textContent = `Частичный возврат: ${res.payout} фишек`; resultEl.className = 'slot-result'; }
+  else { resultEl.textContent = 'Не повезло — попробуйте ещё раз.'; resultEl.className = 'slot-result lose'; }
+
+  await refreshSlotHistory();
+  slotSpinning = false; btn.disabled = false;
+});
+async function refreshSlotHistory(){
+  const el = document.getElementById('slotHistoryList');
+  let data;
+  try{ data = await api('/api/slots/myspins', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.spins.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Спинов пока нет.</div>'; return; }
+  el.innerHTML = data.spins.map(s => {
+    const net = s.payout - s.bet;
+    const badge = net > 0 ? `<span class="pill active">+${net}</span>` : net === 0 ? `<span class="pill" style="background:rgba(198,161,91,0.1); color:var(--muted);">0</span>` : `<span class="pill banned">${net}</span>`;
+    return `<div class="open-room-row"><div>${s.r1}${s.r2}${s.r3}<div class="meta">ставка ${s.bet}</div></div>${badge}</div>`;
+  }).join('');
+}
+
 document.getElementById('joinByCodeBtn').addEventListener('click', ()=>{
   const code = document.getElementById('joinCodeInput').value.trim().toUpperCase();
   const errEl = document.getElementById('dashErr'); errEl.textContent = "";
@@ -665,6 +765,18 @@ async function enterAdmin(){
   await renderAdminUsers();
   refreshAdminTables();
   refreshAdminSportMatches();
+  refreshSlotsStats();
+}
+async function refreshSlotsStats(){
+  const el = document.getElementById('slotsStatRow');
+  let data;
+  try{ data = await api('/api/admin/slots/stats', 'GET'); }catch(e){ return; }
+  el.innerHTML = `
+    <div class="stat-box"><div class="n">${data.spins}</div><div class="l">спинов всего</div></div>
+    <div class="stat-box"><div class="n">${data.wagered}</div><div class="l">поставлено фишек</div></div>
+    <div class="stat-box"><div class="n">${data.paid}</div><div class="l">выплачено фишек</div></div>
+    <div class="stat-box"><div class="n">${data.net}</div><div class="l">чистая разница</div></div>
+  `;
 }
 async function renderAdminUsers(filter){
   let list;
