@@ -189,7 +189,12 @@
      фиксированная высота, из-за которой круг мест "прижимался" к верху
      на широких экранах и выглядел так, будто сидит в центре стола. */
   .seats{position:absolute; top:26px; left:26px; right:26px; bottom:26px; z-index:2; min-height:340px;}
-  @media(max-width:700px){ .seats{top:18px; left:12px; right:12px; bottom:90px; min-height:0;} }
+  @media(max-width:700px){
+    .seats{top:18px; left:12px; right:12px; bottom:90px; min-height:0;}
+    .seat{width:74px;}
+    .avatar-circle{width:42px; height:42px; font-size:15px;}
+    .seat.empty .avatar-circle{width:34px; height:34px;}
+  }
   .seat{
     position:absolute; transform:translate(-50%,-50%);
     display:flex; flex-direction:column; align-items:center; gap:3px;
@@ -217,6 +222,11 @@
   .seat-status-tag{font-size:9px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em;}
   .seat-status-tag.folded-txt{color:var(--red);}
   .seat-status-tag.turn-txt{color:var(--green);}
+  .seat-status-tag.winner-tag{
+    display:block; margin-top:2px; font-family:var(--font-mono); font-size:10px; text-transform:none;
+    color:var(--gold); background:rgba(198,161,91,0.18); border:1px solid var(--gold-dim);
+    border-radius:8px; padding:2px 6px; white-space:nowrap;
+  }
   .hand-cards{display:flex; gap:2px; margin-top:1px;}
   .mini-card{width:20px; height:28px; background:var(--card-bg); border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:9px; color:#222; box-shadow:0 1px 3px rgba(0,0,0,0.4);}
   .mini-card.red{color:var(--red);}
@@ -1290,11 +1300,17 @@ function render(state){
     const i = (startIdx + k) % state.seats.length;
     const s = state.seats[i];
     const angle = (90 + k*(360/N)) * Math.PI/180;
-    const left = 50 + 45*Math.cos(angle);
-    const top = 50 + 44*Math.sin(angle);
+    const left = 50 + 40*Math.cos(angle);
+    const top = 50 + 42*Math.sin(angle);
     const div = document.createElement('div');
     div.style.left = left + '%';
     div.style.top = top + '%';
+    // Карты всегда должны быть со стороны, обращённой к центру стола (к банку),
+    // а не "уезжать" за пределы стола. Для мест в нижней половине стола
+    // разворачиваем содержимое места так, чтобы карты оказались сверху (ближе
+    // к центру), а не снизу.
+    const towardCenterIsUp = top > 50;
+    div.style.flexDirection = towardCenterIsUp ? 'column-reverse' : 'column';
 
     if(!s){
       div.className = 'seat empty';
@@ -1306,7 +1322,8 @@ function render(state){
     if(i === myIdx) cls += ' me';
     if(state.phase==='betting' && i===state.turnIndex) cls += ' turn';
     if(s.folded) cls += ' folded';
-    if(state.phase==='handEnd' && state.lastWinner && state.lastWinner.includes(s.username)) cls += ' winner';
+    const isWinner = state.phase==='handEnd' && state.lastWinner && state.lastWinner.includes(s.username);
+    if(isWinner) cls += ' winner';
     div.className = cls;
     div.dataset.seatuser = s.username;
 
@@ -1315,6 +1332,10 @@ function render(state){
     else if(state.phase==='betting' && i===state.turnIndex) statusTxt = '<span class="seat-status-tag turn-txt">ходит…</span>';
     else if(s.inHand) statusTxt = `<span class="seat-status-tag">поставил ${s.betThisRound}</span>`;
     else statusTxt = '<span class="seat-status-tag">за столом</span>';
+    // Победителю прямо у его места показываем комбинацию и очки — не только в баннере.
+    if(isWinner && s.hand && s.hand.length && s.hand[0] !== null){
+      statusTxt += `<span class="seat-status-tag winner-tag">🏆 ${describeHandClient(s.hand)}</span>`;
+    }
 
     let cardsHtml = '';
     if(s.inHand && s.hand && s.hand.length){
