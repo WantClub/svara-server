@@ -122,7 +122,17 @@
   .top-bar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; width:100%; max-width:960px;}
   .room-tag{font-family:var(--font-mono); font-size:12px; color:var(--muted); background:var(--panel); border:1px solid var(--panel-line); padding:5px 10px; border-radius:6px;}
   .room-tag b{color:var(--gold); letter-spacing:0.08em;}
-  .felt{position:relative; background:radial-gradient(ellipse at center, var(--felt-1) 0%, var(--felt-2) 75%); border:3px solid var(--gold-dim); border-radius:180px / 90px; min-height:420px; padding:20px; width:100%; max-width:960px;}
+  .felt{
+    position:relative; border:3px solid var(--gold-dim); border-radius:180px / 90px;
+    min-height:420px; padding:20px; width:100%; max-width:960px;
+    background-color:var(--felt-2);
+    background-image:
+      radial-gradient(ellipse at 50% 38%, rgba(255,255,255,0.05), transparent 60%),
+      radial-gradient(ellipse at center, var(--felt-1) 0%, var(--felt-2) 78%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,0.018) 0px, rgba(255,255,255,0.018) 1px, transparent 1px, transparent 4px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,0.03) 0px, rgba(0,0,0,0.03) 1px, transparent 1px, transparent 4px);
+    box-shadow: inset 0 0 60px rgba(0,0,0,0.55);
+  }
   @media(max-width:700px){ .felt{border-radius:28px; min-height:auto; padding:16px 12px 90px;} }
   .pot-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:2;}
   .pot-label{font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);}
@@ -130,11 +140,34 @@
   .pot-bet{font-size:11px; color:var(--ivory); margin-top:4px;}
   .phase-tag{display:inline-block; margin-top:6px; font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(198,161,91,0.15); color:var(--gold);}
   .pot-chips-stack{display:flex; justify-content:center; margin-top:8px;}
-  .pot-chip{width:20px; height:20px; border-radius:50%; border:2px solid var(--gold-dim); background:var(--surface); margin-left:-8px; box-shadow:0 2px 4px rgba(0,0,0,0.5);}
+  .pot-chip{
+    width:20px; height:20px; border-radius:50%; margin-left:-9px;
+    box-shadow:0 3px 5px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.35);
+    border:2px solid var(--gold-dim);
+    background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), transparent 45%), var(--surface);
+  }
   .pot-chip:first-child{margin-left:0;}
-  .pot-chip.c1{border-color:var(--red);}
-  .pot-chip.c2{border-color:#2c2c2c;}
-  .pot-chip.c3{border-color:var(--gold);}
+  .pot-chip.c1{border-color:var(--red); background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.5), transparent 45%), #6b1620;}
+  .pot-chip.c2{border-color:#2c2c2c; background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.4), transparent 45%), #101010;}
+  .pot-chip.c3{border-color:var(--gold); background:radial-gradient(circle at 35% 28%, rgba(255,255,255,0.55), transparent 45%), #4a3a12;}
+
+  /* ===== Летящая фишка (анимация ставки к банку) ===== */
+  .flying-chip{
+    position:absolute; width:16px; height:16px; border-radius:50%; z-index:6; pointer-events:none;
+    background:radial-gradient(circle at 35% 28%, #fbe6ad, var(--gold) 55%, var(--gold-dim) 100%);
+    border:2px solid #241607;
+    box-shadow:0 3px 6px rgba(0,0,0,0.6);
+    transition: left 0.55s cubic-bezier(.3,.7,.35,1), top 0.55s cubic-bezier(.3,.7,.35,1), opacity 0.55s ease-in;
+  }
+
+  /* ===== Свечение карт при раздаче ===== */
+  @keyframes cardDealGlow{
+    0%{ box-shadow:0 0 0 rgba(198,161,91,0); transform:scale(0.85) translateY(6px); opacity:0; }
+    55%{ box-shadow:0 0 16px rgba(198,161,91,0.65); }
+    100%{ box-shadow:0 3px 8px rgba(0,0,0,0.45); transform:scale(1) translateY(0); opacity:1; }
+  }
+  .card.just-dealt{ animation: cardDealGlow 0.55s ease-out; }
+  .mini-card.just-dealt{ animation: cardDealGlow 0.5s ease-out; }
 
   /* ===== Круговая рассадка игроков ===== */
   .seats{position:relative; height:320px; z-index:2;}
@@ -1131,9 +1164,35 @@ function renderSpectateHands(st){
 }
 
 /* ===================== ИГРОВОЙ СТОЛ ===================== */
+let lastBetSnapshot = null;
+let lastHandNumberForAnim = null;
+let lastHandCardsKey = null;
+
+function flyChipToPot(seatEl, potEl, feltEl){
+  const seatRect = seatEl.getBoundingClientRect();
+  const potRect = potEl.getBoundingClientRect();
+  const feltRect = feltEl.getBoundingClientRect();
+  const chip = document.createElement('div');
+  chip.className = 'flying-chip';
+  chip.style.left = (seatRect.left - feltRect.left + seatRect.width/2 - 8) + 'px';
+  chip.style.top = (seatRect.top - feltRect.top + seatRect.height/2 - 8) + 'px';
+  feltEl.appendChild(chip);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      chip.style.left = (potRect.left - feltRect.left + potRect.width/2 - 8) + 'px';
+      chip.style.top = (potRect.top - feltRect.top + potRect.height/2 - 8) + 'px';
+      chip.style.opacity = '0.3';
+    });
+  });
+  setTimeout(() => chip.remove(), 650);
+}
+
 function enterTable(){
   showOnly(['tableTop','feltEl','myHandBar','logBox']);
   document.getElementById('roomCodeTag').textContent = roomCode;
+  lastBetSnapshot = null;
+  lastHandNumberForAnim = null;
+  lastHandCardsKey = null;
 }
 
 document.getElementById('leaveBtn').addEventListener('click', ()=>{
@@ -1156,6 +1215,13 @@ function render(state){
   const banner = document.getElementById('showdownBanner');
   banner.innerHTML = (state.phase === 'handEnd' && state.lastWinner)
     ? `<div class="showdown-banner">Банк забирает: <b>${state.lastWinner.join(', ')}</b></div>` : '';
+
+  // Новая раздача — сбрасываем снимок ставок, чтобы анте тоже анимировались как "полёт фишек".
+  if(lastHandNumberForAnim !== state.handNumber){
+    lastBetSnapshot = {};
+    lastHandNumberForAnim = state.handNumber;
+  }
+  const dealtNewHand = lastHandCardsKey !== JSON.stringify((state.seats.find(s=>s&&s.username===me.username)||{}).hand || null);
 
   const grid = document.getElementById('seatsGrid');
   grid.innerHTML = '';
@@ -1184,6 +1250,7 @@ function render(state){
     if(state.phase==='betting' && i===state.turnIndex) cls += ' turn';
     if(s.folded) cls += ' folded';
     div.className = cls;
+    div.dataset.seatuser = s.username;
 
     let statusTxt = '';
     if(s.folded) statusTxt = '<span class="seat-status-tag folded-txt">пас</span>';
@@ -1194,9 +1261,10 @@ function render(state){
     let cardsHtml = '';
     if(s.inHand && s.hand && s.hand.length){
       const shown = s.hand[0] !== null;
+      const dealtCls = dealtNewHand ? ' just-dealt' : '';
       cardsHtml = shown
-        ? `<div class="hand-cards">${s.hand.map(c=>`<div class="mini-card ${suitClass(c.s)}">${c.r}${c.s}</div>`).join('')}</div>`
-        : `<div class="hand-cards">${s.hand.map(()=>`<div class="mini-card back"></div>`).join('')}</div>`;
+        ? `<div class="hand-cards">${s.hand.map(c=>`<div class="mini-card ${suitClass(c.s)}${dealtCls}">${c.r}${c.s}</div>`).join('')}</div>`
+        : `<div class="hand-cards">${s.hand.map(()=>`<div class="mini-card back${dealtCls}"></div>`).join('')}</div>`;
     }
     div.innerHTML = `
       ${avatarHtml(s.avatar, s.username)}
@@ -1208,6 +1276,23 @@ function render(state){
     grid.appendChild(div);
   }
 
+  // Анимация "фишки летят в банк" — для каждого, чья ставка в этом раунде выросла с прошлого рендера.
+  const feltEl = document.getElementById('feltEl');
+  const potEl = document.querySelector('.pot-center');
+  if(lastBetSnapshot !== null && potEl){
+    state.seats.forEach(s=>{
+      if(!s) return;
+      const prevBet = lastBetSnapshot[s.username] || 0;
+      if(s.betThisRound > prevBet){
+        const seatEl = grid.querySelector(`[data-seatuser="${CSS.escape(s.username)}"]`);
+        if(seatEl) flyChipToPot(seatEl, potEl, feltEl);
+      }
+    });
+  }
+  lastBetSnapshot = {};
+  state.seats.forEach(s=>{ if(s) lastBetSnapshot[s.username] = s.betThisRound; });
+  lastHandCardsKey = JSON.stringify((state.seats.find(s=>s&&s.username===me.username)||{}).hand || null);
+
   updateTurnTimer(state);
 
   const myCardsEl = document.getElementById('myCards');
@@ -1215,7 +1300,7 @@ function render(state){
   myCardsEl.innerHTML = '';
   if(myIdx >= 0 && state.seats[myIdx].inHand && state.seats[myIdx].hand.length && state.seats[myIdx].hand[0] !== null){
     state.seats[myIdx].hand.forEach(c => {
-      const d = document.createElement('div'); d.className = 'card ' + suitClass(c.s);
+      const d = document.createElement('div'); d.className = 'card ' + suitClass(c.s) + (dealtNewHand ? ' just-dealt' : '');
       d.innerHTML = `<div class="r">${c.r}</div><div class="s">${c.s}</div>`; myCardsEl.appendChild(d);
     });
     comboTag.style.display = 'inline-block';
