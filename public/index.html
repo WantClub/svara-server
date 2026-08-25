@@ -338,22 +338,6 @@
       <div id="spectatePanel"></div>
     </div>
     <div class="card-panel">
-      <h3>Спорт — управление матчами</h3>
-      <p class="hint">Коэффициенты задаются вручную. Пустое поле «ничья» — если у события не бывает ничьей.</p>
-      <div class="row2">
-        <div><label>Название матча</label><input type="text" id="spmTitle" placeholder="Барселона — Реал Мадрид"></div>
-        <div><label>Турнир (необяз.)</label><input type="text" id="spmComp" placeholder="Ла Лига"></div>
-      </div>
-      <div class="row2">
-        <div><label>Кф. П1</label><input type="number" id="spmOddsH" step="0.01" min="1.01" placeholder="2.10"></div>
-        <div><label>Кф. Х (необяз.)</label><input type="number" id="spmOddsD" step="0.01" min="1.01" placeholder="3.30"></div>
-        <div><label>Кф. П2</label><input type="number" id="spmOddsA" step="0.01" min="1.01" placeholder="3.40"></div>
-      </div>
-      <button class="btn secondary" id="spmCreateBtn" style="max-width:260px;">Добавить матч</button>
-      <div class="err" id="spmErr"></div>
-      <div id="spmAdminList" style="margin-top:16px;"></div>
-    </div>
-    <div class="card-panel">
       <h3>Слоты — статистика</h3>
       <div class="stat-row" id="slotsStatRow"></div>
     </div>
@@ -772,7 +756,6 @@ async function enterAdmin(){
   renderTopbar();
   await renderAdminUsers();
   refreshAdminTables();
-  refreshAdminSportMatches();
   refreshSlotsStats();
   refreshRakeStats();
 }
@@ -938,64 +921,6 @@ function refreshAdminTables(){
   });
 }
 document.getElementById('refreshAdminTablesBtn').addEventListener('click', refreshAdminTables);
-
-/* ===================== СПОРТ (АДМИН) ===================== */
-document.getElementById('spmCreateBtn').addEventListener('click', async ()=>{
-  const errEl = document.getElementById('spmErr'); errEl.textContent = "";
-  const title = document.getElementById('spmTitle').value.trim();
-  const competition = document.getElementById('spmComp').value.trim();
-  const oddsHome = document.getElementById('spmOddsH').value;
-  const oddsDraw = document.getElementById('spmOddsD').value;
-  const oddsAway = document.getElementById('spmOddsA').value;
-  try{
-    await api('/api/admin/sports/create', 'POST', {title, competition, oddsHome, oddsDraw: oddsDraw || undefined, oddsAway});
-    document.getElementById('spmTitle').value = '';
-    document.getElementById('spmComp').value = '';
-    document.getElementById('spmOddsH').value = '';
-    document.getElementById('spmOddsD').value = '';
-    document.getElementById('spmOddsA').value = '';
-    await refreshAdminSportMatches();
-  }catch(e){ errEl.textContent = e.message; }
-});
-
-async function refreshAdminSportMatches(){
-  const el = document.getElementById('spmAdminList');
-  let data;
-  try{ data = await api('/api/admin/sports/matches', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
-  if(!data.matches.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Матчей ещё нет.</div>'; return; }
-  const statusLabel = {open:'приём ставок открыт', closed:'приём закрыт, ждёт результата', resolved:'рассчитан'};
-  el.innerHTML = data.matches.map(m => `
-    <div class="open-room-row" style="flex-direction:column; align-items:stretch; gap:8px;">
-      <div>
-        <b>${m.title}</b> ${m.competition ? `<span class="meta">· ${m.competition}</span>` : ''}
-        <div class="meta">П1 ${m.oddsHome.toFixed(2)} ${m.oddsDraw?`· Х ${m.oddsDraw.toFixed(2)}`:''} · П2 ${m.oddsAway.toFixed(2)} — ${statusLabel[m.status]}${m.result?` (итог: ${({home:'П1',draw:'Х',away:'П2'})[m.result]})`:''}</div>
-      </div>
-      ${m.status !== 'resolved' ? `
-      <div class="admin-actions">
-        ${m.status === 'open' ? `<button data-close="${m.id}">Закрыть приём ставок</button>` : ''}
-        <button class="adm" data-resolve="${m.id}" data-r="home">Итог: П1</button>
-        ${m.oddsDraw ? `<button class="adm" data-resolve="${m.id}" data-r="draw">Итог: Х</button>` : ''}
-        <button class="adm" data-resolve="${m.id}" data-r="away">Итог: П2</button>
-      </div>` : ''}
-    </div>
-  `).join('');
-  el.querySelectorAll('[data-close]').forEach(b=>{
-    b.addEventListener('click', async ()=>{
-      try{ await api('/api/admin/sports/close', 'POST', {matchId: parseInt(b.dataset.close)}); await refreshAdminSportMatches(); }
-      catch(e){ alert(e.message); }
-    });
-  });
-  el.querySelectorAll('[data-resolve]').forEach(b=>{
-    b.addEventListener('click', async ()=>{
-      if(!confirm('Рассчитать матч и выплатить выигрыши? Это действие необратимо.')) return;
-      try{
-        await api('/api/admin/sports/resolve', 'POST', {matchId: parseInt(b.dataset.resolve), result: b.dataset.r});
-        await refreshAdminSportMatches();
-      }catch(e){ alert(e.message); }
-    });
-  });
-}
-
 
 function suitClass(s){ return (s==='♥'||s==='♦') ? 'red' : ''; }
 
