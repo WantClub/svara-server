@@ -609,18 +609,7 @@ document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer
 
 function openCashier(){
   if(CASHIER_TELEGRAM_URL){
-    showModal(`
-      <h4>Касса</h4>
-      <p class="hint">Курс: <b style="color:var(--gold);">100 фишек ≈ 1$</b></p>
-      <p class="hint">Напишите администратору клуба в Telegram, чтобы пополнить баланс фишек.</p>
-      <button class="btn" id="mCashierGo">Перейти в Telegram</button>
-      <button class="btn secondary" id="mCashierClose">Отмена</button>
-    `);
-    document.getElementById('mCashierGo').addEventListener('click', ()=>{
-      window.open(CASHIER_TELEGRAM_URL, '_blank');
-      closeModal();
-    });
-    document.getElementById('mCashierClose').addEventListener('click', closeModal);
+    window.open(CASHIER_TELEGRAM_URL, '_blank');
   } else {
     showModal(`
       <h4>Касса</h4>
