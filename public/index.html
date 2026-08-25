@@ -140,7 +140,7 @@
       0 10px 30px rgba(0,0,0,0.6);
     background-clip:padding-box;
   }
-  @media(max-width:700px){ .felt{border-radius:36px; min-height:auto; padding:18px 12px 90px;} }
+  @media(max-width:700px){ .felt{border-radius:36px; min-height:460px; padding:18px 12px 90px;} }
   .pot-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:2;}
   .pot-badge{
     border:1.5px solid var(--gold-dim); border-radius:8px; padding:4px 16px;
@@ -184,8 +184,12 @@
   .mini-card.just-dealt{ animation: cardDealGlow 0.5s ease-out; }
 
   /* ===== Круговая рассадка игроков ===== */
-  .seats{position:relative; height:320px; z-index:2;}
-  @media(max-width:700px){ .seats{height:380px;} }
+  /* Заполняет ровно внутреннюю область стола (внутри его собственных
+     отступов), какого бы размера сам стол ни был — раньше тут была
+     фиксированная высота, из-за которой круг мест "прижимался" к верху
+     на широких экранах и выглядел так, будто сидит в центре стола. */
+  .seats{position:absolute; top:26px; left:26px; right:26px; bottom:26px; z-index:2; min-height:340px;}
+  @media(max-width:700px){ .seats{top:18px; left:12px; right:12px; bottom:90px; min-height:0;} }
   .seat{
     position:absolute; transform:translate(-50%,-50%);
     display:flex; flex-direction:column; align-items:center; gap:3px;
@@ -1286,8 +1290,8 @@ function render(state){
     const i = (startIdx + k) % state.seats.length;
     const s = state.seats[i];
     const angle = (90 + k*(360/N)) * Math.PI/180;
-    const left = 50 + 42*Math.cos(angle);
-    const top = 50 + 38*Math.sin(angle);
+    const left = 50 + 45*Math.cos(angle);
+    const top = 50 + 44*Math.sin(angle);
     const div = document.createElement('div');
     div.style.left = left + '%';
     div.style.top = top + '%';
