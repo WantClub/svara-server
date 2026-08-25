@@ -85,6 +85,11 @@ function dealHand(room) {
   const seated = seatedIndices(room).filter(i => room.seats[i].chips > 0);
   if (seated.length < 2) return { ok: false, error: 'Нужно минимум 2 игрока с фишками.' };
 
+  // Запоминаем фишки каждого участника ДО анте — нужно для истории раздач
+  // (чтобы честно посчитать, выиграл игрок эту раздачу или проиграл).
+  room.handStartChips = {};
+  seated.forEach(i => { room.handStartChips[room.seats[i].username] = room.seats[i].chips; });
+
   const deck = newDeck();
   seated.forEach(i => {
     const s = room.seats[i];

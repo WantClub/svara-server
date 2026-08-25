@@ -126,6 +126,8 @@ app.post('/api/admin/adjust', authMiddleware, adminMiddleware, (req, res) => {
   const newChips = target.chips + amt;
   if (newChips < 0) return res.status(400).json({ error: 'Нельзя уйти в минус по балансу.' });
   db.prepare('UPDATE users SET chips = ? WHERE username = ?').run(newChips, target.username);
+  db.prepare('INSERT INTO chip_adjustments (username, amount, admin_username, created_at) VALUES (?,?,?,?)')
+    .run(target.username, amt, req.dbUser.username, Date.now());
   res.json({ ok: true, chips: newChips });
 });
 
@@ -276,6 +278,45 @@ app.get('/api/admin/slots/stats', authMiddleware, adminMiddleware, (req, res) =>
   res.json({ spins: row.spins, wagered: row.wagered, paid: row.paid, net: row.wagered - row.paid });
 });
 
+// ===================== СТАТИСТИКА ИГРОКА (АДМИН) =====================
+// Наблюдательная аналитика для владельца клуба: история ручных
+// пополнений/списаний и статистика раздач в покере. Это НЕ доход клуба —
+// фишки игрока остаются его фишками внутри закрытой экономики клуба.
+app.get('/api/admin/player/:username/stats', authMiddleware, adminMiddleware, (req, res) => {
+  const username = req.params.username;
+  const target = getUserByUsername(username);
+  if (!target) return res.status(404).json({ error: 'Игрок не найден.' });
+
+  const adjustments = db.prepare(
+    'SELECT amount, admin_username, created_at FROM chip_adjustments WHERE username = ? COLLATE NOCASE ORDER BY created_at DESC LIMIT 100'
+  ).all(username);
+
+  const handsRow = db.prepare(
+    `SELECT COUNT(*) as played,
+            SUM(CASE WHEN won = 1 THEN 1 ELSE 0 END) as won,
+            SUM(CASE WHEN won = 0 THEN 1 ELSE 0 END) as lost,
+            COALESCE(SUM(delta),0) as netChips
+     FROM hand_history WHERE username = ? COLLATE NOCASE`
+  ).get(username);
+
+  const recentHands = db.prepare(
+    'SELECT room_code, hand_number, delta, won, created_at FROM hand_history WHERE username = ? COLLATE NOCASE ORDER BY created_at DESC LIMIT 30'
+  ).all(username);
+
+  res.json({
+    username: target.username,
+    currentChips: target.chips,
+    adjustments,
+    hands: {
+      played: handsRow.played || 0,
+      won: handsRow.won || 0,
+      lost: handsRow.lost || 0,
+      netChips: handsRow.netChips || 0
+    },
+    recentHands
+  });
+});
+
 // ===================== ИГРОВЫЕ КОМНАТЫ (в памяти сервера) =====================
 const rooms = new Map();        // code -> room object (game.js), + seats[i].socketId
 const socketMeta = new Map();   // socket.id -> { username, roomCode }
@@ -419,6 +460,21 @@ io.on('connection', (socket) => {
     return room.seats.findIndex(s => s && s.username === socket.username);
   }
 
+  function logHandHistoryIfNeeded(room) {
+    if (room.phase !== 'handEnd') return;
+    if (room.lastLoggedHand === room.handNumber) return; // уже записали эту раздачу
+    room.lastLoggedHand = room.handNumber;
+    const starts = room.handStartChips || {};
+    room.seats.forEach(s => {
+      if (!s) return;
+      const startChips = starts[s.username];
+      if (startChips === undefined) return; // не участвовал в этой раздаче
+      const delta = s.chips - startChips;
+      db.prepare('INSERT INTO hand_history (username, room_code, hand_number, delta, won, created_at) VALUES (?,?,?,?,?,?)')
+        .run(s.username, room.code, room.handNumber, delta, delta > 0 ? 1 : 0, Date.now());
+    });
+  }
+
   socket.on('table:action', ({ type }, cb) => {
     const meta = socketMeta.get(socket.id);
     const room = meta && rooms.get(meta.roomCode);
@@ -434,6 +490,7 @@ io.on('connection', (socket) => {
     else if (type === 'next') result = game.nextHandReset(room);
     else result = { ok: false, error: 'Неизвестное действие.' };
 
+    if (result.ok) logHandHistoryIfNeeded(room);
     if (cb) cb(result);
     if (result.ok) broadcastRoom(room.code);
   });

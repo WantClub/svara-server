@@ -81,7 +81,10 @@
   .search-row{margin-bottom:12px;}
 
   .modal-bg{position:fixed; inset:0; background:rgba(0,0,0,0.6); display:flex; align-items:center; justify-content:center; z-index:100; padding:16px;}
-  .modal-box{background:var(--panel); border:1px solid var(--gold-dim); border-radius:12px; padding:22px; max-width:360px; width:100%;}
+  .modal-box{background:var(--panel); border:1px solid var(--gold-dim); border-radius:12px; padding:22px; max-width:360px; width:100%; max-height:82vh; overflow-y:auto;}
+  .modal-box.wide{max-width:480px;}
+  .stats-hist-row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px solid var(--panel-line); font-size:12.5px;}
+  .stats-hist-row .meta{color:var(--muted); font-size:11px;}
   .modal-box h4{font-family:var(--font-display); color:var(--gold); margin:0 0 10px; font-size:15px;}
 
   .top-bar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; width:100%; max-width:960px;}
@@ -755,7 +758,7 @@ function promptBuyInAndJoin(code){
 }
 
 /* ===================== MODAL ===================== */
-function showModal(html){ document.getElementById('modalRoot').innerHTML = `<div class="modal-bg"><div class="modal-box">${html}</div></div>`; }
+function showModal(html, wide){ document.getElementById('modalRoot').innerHTML = `<div class="modal-bg"><div class="modal-box${wide?' wide':''}">${html}</div></div>`; }
 function closeModal(){ document.getElementById('modalRoot').innerHTML = ''; }
 
 /* ===================== ADMIN ===================== */
@@ -796,6 +799,7 @@ async function renderAdminUsers(filter){
       <td>${u.isAdmin?'<span class="pill admin">админ</span>':''}${u.banned?'<span class="pill banned">бан</span>':'<span class="pill active">активен</span>'}</td>
       <td style="color:var(--muted); font-size:11.5px;">${new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
       <td><div class="admin-actions">
+        <button data-act="stats" data-u="${u.username}">статистика</button>
         <button data-act="add" data-u="${u.username}">+ фишки</button>
         <button data-act="sub" data-u="${u.username}">− фишки</button>
         <button class="ban" data-act="ban" data-u="${u.username}">${u.banned?'разбан':'бан'}</button>
@@ -810,6 +814,10 @@ async function renderAdminUsers(filter){
 document.getElementById('adminSearch').addEventListener('input', (e)=> renderAdminUsers(e.target.value));
 
 function handleAdminAction(act, uname){
+  if(act === 'stats'){
+    showPlayerStatsModal(uname);
+    return;
+  }
   if(act === 'add' || act === 'sub'){
     showModal(`
       <h4>${act==='add'?'Пополнить':'Списать'} фишки: ${uname}</h4>
@@ -833,6 +841,57 @@ function handleAdminAction(act, uname){
   } else if(act === 'adm'){
     api('/api/admin/promote', 'POST', {username: uname}).then(()=> renderAdminUsers(document.getElementById('adminSearch').value));
   }
+}
+
+async function showPlayerStatsModal(uname){
+  showModal(`<h4>Статистика: ${uname}</h4><p class="hint">Загрузка…</p>`, true);
+  let data;
+  try{
+    data = await api('/api/admin/player/' + encodeURIComponent(uname) + '/stats', 'GET');
+  }catch(e){
+    showModal(`<h4>Статистика: ${uname}</h4><p class="err">${e.message}</p><button class="btn secondary" id="mStatsClose">Закрыть</button>`, true);
+    document.getElementById('mStatsClose').addEventListener('click', closeModal);
+    return;
+  }
+
+  const h = data.hands;
+  const adjRows = data.adjustments.length
+    ? data.adjustments.map(a => `
+        <div class="stats-hist-row">
+          <div>${a.amount > 0 ? '+' : ''}${a.amount} фишек</div>
+          <div class="meta">${new Date(a.created_at).toLocaleString('ru-RU')} · админ ${a.admin_username}</div>
+        </div>`).join('')
+    : '<div class="hint">Начислений ещё не было.</div>';
+
+  const handRows = data.recentHands.length
+    ? data.recentHands.map(hh => `
+        <div class="stats-hist-row">
+          <div>Стол ${hh.room_code} · раздача №${hh.hand_number} — ${hh.won ? '<span style="color:var(--green);">+' + hh.delta + '</span>' : '<span style="color:var(--red);">' + hh.delta + '</span>'}</div>
+          <div class="meta">${new Date(hh.created_at).toLocaleString('ru-RU')}</div>
+        </div>`).join('')
+    : '<div class="hint">Раздач ещё не было.</div>';
+
+  showModal(`
+    <h4>Статистика: ${data.username}</h4>
+    <p class="hint">Наблюдательная сводка для владельца клуба. Это собственный результат игрока внутри фишковой экономики клуба, а не доход клуба или его владельца.</p>
+
+    <div class="stat-row" style="margin-top:10px;">
+      <div class="stat-box"><div class="n">${data.currentChips}</div><div class="l">баланс сейчас</div></div>
+      <div class="stat-box"><div class="n">${h.played}</div><div class="l">раздач сыграно</div></div>
+      <div class="stat-box"><div class="n">${h.won}</div><div class="l">выиграно</div></div>
+      <div class="stat-box"><div class="n">${h.lost}</div><div class="l">проиграно</div></div>
+      <div class="stat-box"><div class="n" style="color:${h.netChips>=0?'var(--green)':'var(--red)'};">${h.netChips>=0?'+':''}${h.netChips}</div><div class="l">чистый результат в покере</div></div>
+    </div>
+
+    <h3 style="margin-top:18px;">История ручных начислений</h3>
+    <div style="max-height:180px; overflow-y:auto;">${adjRows}</div>
+
+    <h3 style="margin-top:18px;">Последние раздачи</h3>
+    <div style="max-height:220px; overflow-y:auto;">${handRows}</div>
+
+    <button class="btn secondary" id="mStatsClose" style="margin-top:16px;">Закрыть</button>
+  `, true);
+  document.getElementById('mStatsClose').addEventListener('click', closeModal);
 }
 
 function refreshAdminTables(){

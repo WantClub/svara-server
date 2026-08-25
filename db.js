@@ -53,6 +53,24 @@ CREATE TABLE IF NOT EXISTS slot_spins (
   payout INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS chip_adjustments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  amount INTEGER NOT NULL,     -- положительное = пополнение, отрицательное = списание
+  admin_username TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS hand_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  room_code TEXT NOT NULL,
+  hand_number INTEGER NOT NULL,
+  delta INTEGER NOT NULL,      -- изменение фишек игрока за эту раздачу (может быть отрицательным)
+  won INTEGER NOT NULL,        -- 1 если раздача сыграна в плюс, 0 если в минус
+  created_at INTEGER NOT NULL
+);
 `);
 
 module.exports = db;
