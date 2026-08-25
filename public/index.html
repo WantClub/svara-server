@@ -432,6 +432,7 @@
       <h3>Ваш кошелёк</h3>
       <div class="dash-balance"><div class="flip-row" id="dashBalanceDigits"></div><span style="color:var(--muted); font-size:12px;">фишек</span></div>
       <p class="hint" style="margin-top:10px;">Пополнение и списание фишек делает только администратор клуба вручную. Когда садитесь за стол — уходит весь баланс кошелька.</p>
+      <p class="hint" style="margin-top:4px; color:var(--gold);">Курс: 100 фишек ≈ 1$</p>
     </div>
     <div class="card-panel">
       <div class="lobby-tabs">
@@ -608,7 +609,18 @@ document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer
 
 function openCashier(){
   if(CASHIER_TELEGRAM_URL){
-    window.open(CASHIER_TELEGRAM_URL, '_blank');
+    showModal(`
+      <h4>Касса</h4>
+      <p class="hint">Курс: <b style="color:var(--gold);">100 фишек ≈ 1$</b></p>
+      <p class="hint">Напишите администратору клуба в Telegram, чтобы пополнить баланс фишек.</p>
+      <button class="btn" id="mCashierGo">Перейти в Telegram</button>
+      <button class="btn secondary" id="mCashierClose">Отмена</button>
+    `);
+    document.getElementById('mCashierGo').addEventListener('click', ()=>{
+      window.open(CASHIER_TELEGRAM_URL, '_blank');
+      closeModal();
+    });
+    document.getElementById('mCashierClose').addEventListener('click', closeModal);
   } else {
     showModal(`
       <h4>Касса</h4>
