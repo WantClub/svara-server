@@ -58,6 +58,7 @@
   .btn.secondary{background:transparent; border:1px solid var(--gold-dim); color:var(--gold);}
   .btn.secondary:hover{background:rgba(198,161,91,0.08);}
   .btn.small{width:auto; margin-top:0; padding:7px 12px; font-size:12px;}
+  .cashier-btn{white-space:nowrap; border-radius:20px;}
   .row2{display:flex; gap:10px;}
   .row2 > div{flex:1;}
   .err{color:#ff8a80; font-size:12px; margin-top:8px; min-height:16px;}
@@ -558,7 +559,7 @@ const API = ''; // тот же домен, что и сайт
 
 // Ссылка на Telegram админа для пополнения/вопросов по кассе.
 // Когда определишься с юзернеймом — впиши сюда вида 'https://t.me/твой_юзернейм'.
-const CASHIER_TELEGRAM_URL = '';
+const CASHIER_TELEGRAM_URL = 'https://t.me/kassasvarastars';
 let token = localStorage.getItem('svara_token') || null;
 let me = null; // {username, chips, isAdmin}
 let socket = null;
@@ -690,7 +691,7 @@ function connectSocket(){
 /* ===================== TOPBAR ===================== */
 function renderTopbar(){
   const right = document.getElementById('topbarRight');
-  right.innerHTML = `<div class="icon-btn" id="tbCashier" title="Касса">💳</div>`;
+  right.innerHTML = `<button class="btn small cashier-btn" id="tbCashier">💳 Касса</button>`;
   document.getElementById('tbCashier').addEventListener('click', openCashier);
 
   const drawerAv = document.getElementById('drawerAvatar');
