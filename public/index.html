@@ -1410,7 +1410,7 @@ function render(state){
     }
     div.innerHTML = `
       ${avatarHtml(s.avatar, s.username)}
-      <div class="seat-name-tag">${state.hostName===s.username?'👑 ':''}${s.username}</div>
+      <div class="seat-name-tag">${s.username}</div>
       <div class="seat-chips-tag">${s.chips}</div>
       ${statusTxt}
       ${cardsHtml}
