@@ -1322,7 +1322,7 @@ function render(state){
       const div = document.createElement('div'); div.className = 'actions';
       const need = state.currentHighBet - state.seats[myIdx].betThisRound;
       const callBtn = document.createElement('button'); callBtn.className='act-call';
-      callBtn.textContent = need > 0 ? `Играть (+${need})` : 'Чек'; callBtn.addEventListener('click', ()=>act('call'));
+      callBtn.textContent = need > 0 ? `Сравнять (+${need})` : 'Открыть карты'; callBtn.addEventListener('click', ()=>act('call'));
       const foldBtn = document.createElement('button'); foldBtn.className='act-fold';
       foldBtn.textContent = 'Пас'; foldBtn.addEventListener('click', ()=>act('fold'));
       div.appendChild(callBtn); div.appendChild(foldBtn); zone.appendChild(div);
