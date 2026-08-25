@@ -13,7 +13,7 @@
        кожа. Имена переменных сохранены из прошлых версий — поменялись
        только значения цветов. */
     --felt-1:#2A1710; --felt-2:#120A06; --wood:#4A2E18;
-    --gold:#C6A15B; --gold-dim:#7A6238; --ivory:#EDE4D3;
+    --gold:#B08F4E; --gold-dim:#6E5A34; --ivory:#C9BFA9;
     --card-bg:#F7F0E1; --red:#8B2E3B; --green:#3F6B52; --muted:#A89A82;
     --panel:#1B120B; --panel-line:#3A2A1C; --surface:#150E08;
     --font-display:'Playfair Display',serif; --font-body:'Manrope',sans-serif; --font-mono:'Space Mono',monospace;
@@ -23,12 +23,12 @@
     margin:0; color:var(--ivory); font-family:var(--font-body); -webkit-font-smoothing:antialiased;
     background-color:#0D0805;
     background-image:
-      radial-gradient(ellipse 900px 500px at 50% -8%, rgba(198,161,91,0.10), transparent 60%),
+      radial-gradient(ellipse 900px 500px at 50% -8%, rgba(198,161,91,0.05), transparent 60%),
       radial-gradient(ellipse 1200px 700px at 50% 115%, rgba(0,0,0,0.55), transparent 55%);
     background-repeat: no-repeat;
   }
   .wrap{min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:20px 14px 40px;}
-  .brand{font-family:var(--font-display); font-weight:700; font-size:22px; letter-spacing:0.06em; color:var(--gold); text-shadow:0 0 18px rgba(198,161,91,0.35); margin-bottom:4px; text-align:center;}
+  .brand{font-family:var(--font-display); font-weight:700; font-size:22px; letter-spacing:0.06em; color:var(--gold); margin-bottom:4px; text-align:center;}
   .brand .sub{display:block; font-family:var(--font-body); font-size:11px; letter-spacing:0.08em; color:var(--muted); font-weight:500; margin-top:4px;}
   .topbar{width:100%; max-width:640px; display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;}
   .user-chip{font-family:var(--font-mono); font-size:12px; background:var(--panel); border:1px solid var(--panel-line); padding:5px 10px; border-radius:6px; display:flex; align-items:center; gap:8px;}
@@ -96,7 +96,7 @@
   @media(max-width:700px){ .felt{border-radius:28px; min-height:auto; padding:16px 12px 90px;} }
   .pot-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:2;}
   .pot-label{font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);}
-  .pot-amt{font-family:var(--font-mono); font-weight:700; font-size:26px; color:var(--gold); text-shadow:0 0 12px rgba(198,161,91,0.35);}
+  .pot-amt{font-family:var(--font-mono); font-weight:700; font-size:26px; color:var(--gold);}
   .pot-bet{font-size:11px; color:var(--ivory); margin-top:4px;}
   .phase-tag{display:inline-block; margin-top:6px; font-family:var(--font-mono); font-size:10px; padding:2px 8px; border-radius:10px; background:rgba(198,161,91,0.15); color:var(--gold);}
   .seats{position:relative; display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; z-index:2;}
