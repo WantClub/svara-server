@@ -5,27 +5,22 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SVARA STARS — приватный карточный клуб</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
 <style>
   :root{
-    /* Палитра «приватный клуб»: тёмное дерево, состаренная латунь, бордовая
-       кожа. Имена переменных сохранены из прошлых версий — поменялись
-       только значения цветов. */
-    --felt-1:#2A1710; --felt-2:#120A06; --wood:#4A2E18;
-    --gold:#B08F4E; --gold-dim:#6E5A34; --ivory:#C9BFA9;
-    --card-bg:#F7F0E1; --red:#8B2E3B; --green:#3F6B52; --muted:#A89A82;
-    --panel:#1B120B; --panel-line:#3A2A1C; --surface:#150E08;
-    --font-display:'Playfair Display',serif; --font-body:'Manrope',sans-serif; --font-mono:'Space Mono',monospace;
+    /* Палитра SVARA STARS: чёрный фон, золото, зелёное сукно только на
+       игровом столе — по референсу мобильного приложения. */
+    --felt-1:#124430; --felt-2:#061A11; --wood:#8A7020;
+    --gold:#C9A227; --gold-dim:#8A7020; --ivory:#EDEAE2;
+    --card-bg:#F7F5EF; --red:#D64550; --green:#1F7A4D; --muted:#8C8C8C;
+    --panel:#121212; --panel-line:#2A2A2A; --surface:#0B0B0B;
+    --font-display:'Cinzel',serif; --font-body:'Manrope',sans-serif; --font-mono:'Space Mono',monospace;
   }
   *{box-sizing:border-box;}
   html,body{
     margin:0; color:var(--ivory); font-family:var(--font-body); -webkit-font-smoothing:antialiased;
-    background-color:#0D0805;
-    background-image:
-      radial-gradient(ellipse 900px 500px at 50% -8%, rgba(198,161,91,0.05), transparent 60%),
-      radial-gradient(ellipse 1200px 700px at 50% 115%, rgba(0,0,0,0.55), transparent 55%);
-    background-repeat: no-repeat;
+    background:#050505;
   }
   .wrap{min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:20px 14px 40px;}
   .brand{font-family:var(--font-display); font-weight:700; font-size:22px; letter-spacing:0.06em; color:var(--gold); margin-bottom:4px; text-align:center;}
@@ -92,7 +87,7 @@
   .top-bar{display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px; width:100%; max-width:960px;}
   .room-tag{font-family:var(--font-mono); font-size:12px; color:var(--muted); background:var(--panel); border:1px solid var(--panel-line); padding:5px 10px; border-radius:6px;}
   .room-tag b{color:var(--gold); letter-spacing:0.08em;}
-  .felt{position:relative; background:radial-gradient(ellipse at center, var(--felt-1) 0%, var(--felt-2) 75%); border:10px solid var(--wood); outline:2px solid var(--gold-dim); outline-offset:-6px; border-radius:180px / 90px; min-height:420px; padding:20px; width:100%; max-width:960px;}
+  .felt{position:relative; background:radial-gradient(ellipse at center, var(--felt-1) 0%, var(--felt-2) 75%); border:3px solid var(--gold-dim); border-radius:180px / 90px; min-height:420px; padding:20px; width:100%; max-width:960px;}
   @media(max-width:700px){ .felt{border-radius:28px; min-height:auto; padding:16px 12px 90px;} }
   .pot-center{position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; z-index:2;}
   .pot-label{font-size:10px; text-transform:uppercase; letter-spacing:0.12em; color:var(--muted);}
@@ -125,9 +120,10 @@
   .card .r{font-size:17px; color:#222;} .card .s{font-size:15px; margin-top:2px;}
   .card.red .r, .card.red .s{color:var(--red);}
   .actions{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
-  .actions button{flex:1; min-width:110px; padding:12px; border-radius:8px; border:none; font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.04em; cursor:pointer;}
-  .act-call{background:var(--green); color:#0C1810;} .act-raise{background:var(--gold); color:#231607;}
-  .act-fold{background:transparent; border:1px solid var(--red) !important; color:#ff9d94;}
+  .actions button{flex:1; min-width:110px; padding:12px; border-radius:8px; border:1px solid var(--gold-dim); background:transparent; font-family:var(--font-display); font-weight:700; font-size:13px; letter-spacing:0.04em; cursor:pointer; color:var(--gold);}
+  .act-call:hover, .act-raise:hover{background:rgba(201,162,39,0.1);}
+  .act-fold{border-color:rgba(214,69,80,0.5) !important; color:#ff9d94;}
+  .act-fold:hover{background:rgba(214,69,80,0.1);}
   .wait-note{font-size:12.5px; color:var(--muted); padding:8px 0;}
   .host-panel{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;}
   .host-panel .btn{width:auto; flex:1; margin-top:0;}
@@ -140,18 +136,84 @@
   .spectate-seat{background:var(--surface); border:1px solid var(--panel-line); border-radius:8px; padding:10px;}
   .spectate-seat .nm{font-weight:700; font-size:13px; margin-bottom:4px;}
   .spectate-seat .cards{display:flex; gap:4px; margin-top:6px;}
+
+  /* ===== Логотип-эмблема (экран входа) ===== */
+  .logo-mark{position:relative; width:84px; height:84px; margin:0 auto 10px; display:flex; align-items:center; justify-content:center;}
+  .logo-mark .spade{font-size:80px; line-height:1; color:var(--gold); text-align:center;}
+  .logo-mark .spark{position:absolute; top:18px; left:50%; transform:translateX(-50%); font-size:16px; color:#0B0B0B;}
+
+  /* ===== Верхняя панель: бургер слева, касса справа ===== */
+  .icon-btn{
+    width:36px; height:36px; border-radius:50%; background:var(--panel); border:1px solid var(--panel-line);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; color:var(--gold); font-size:16px;
+  }
+  .icon-btn:hover{border-color:var(--gold-dim);}
+  .topbar-left{display:flex; align-items:center; gap:10px;}
+
+  /* ===== Выезжающее меню ===== */
+  .drawer-bg{position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:200; display:none;}
+  .drawer-bg.open{display:block;}
+  .drawer{
+    position:fixed; top:0; left:0; bottom:0; width:270px; max-width:82vw;
+    background:var(--panel); border-right:1px solid var(--panel-line); z-index:201;
+    transform:translateX(-100%); transition:transform 0.22s ease; padding:20px 16px; overflow-y:auto;
+  }
+  .drawer.open{transform:translateX(0);}
+  .drawer-head{display:flex; align-items:center; gap:10px; padding-bottom:16px; margin-bottom:10px; border-bottom:1px solid var(--panel-line);}
+  .drawer-avatar{width:40px; height:40px; border-radius:50%; background:var(--surface); border:1px solid var(--gold-dim); display:flex; align-items:center; justify-content:center; color:var(--gold); font-family:var(--font-display); font-weight:700;}
+  .drawer-name{font-size:14px; font-weight:700;}
+  .drawer-role{font-size:11px; color:var(--gold);}
+  .drawer-item{
+    display:flex; align-items:center; gap:12px; padding:11px 8px; border-radius:7px; cursor:pointer;
+    font-size:13.5px; color:var(--ivory); margin-bottom:2px;
+  }
+  .drawer-item:hover{background:var(--surface);}
+  .drawer-item .ic{width:18px; text-align:center; color:var(--gold);}
+  .drawer-item.danger{color:#ff9d94;}
+  .drawer-item.danger .ic{color:#ff9d94;}
+
+  /* ===== Круглые фишки-кнопки (выбор суммы) ===== */
+  .chip-grid{display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin:10px 0;}
+  .chip-btn{
+    aspect-ratio:1; border-radius:50%; border:2px dashed var(--gold-dim); background:var(--surface);
+    display:flex; align-items:center; justify-content:center; flex-direction:column; cursor:pointer;
+    color:var(--ivory); font-family:var(--font-mono); font-weight:700; font-size:12.5px;
+    box-shadow:0 0 0 4px var(--panel) inset;
+  }
+  .chip-btn:hover{border-color:var(--gold);}
+  .chip-btn.selected{border:2px solid var(--gold); background:rgba(201,162,39,0.12); color:var(--gold);}
 </style>
 </head>
 <body>
 
 <div class="wrap">
   <div class="topbar" id="topbar" style="display:none;">
-    <div class="brand" style="font-size:15px; text-align:left; margin:0;">SVARA STARS</div>
+    <div class="topbar-left">
+      <div class="icon-btn" id="menuBtn" title="Меню">☰</div>
+      <div class="brand" style="font-size:15px; text-align:left; margin:0;">SVARA STARS</div>
+    </div>
     <div id="topbarRight" style="display:flex; align-items:center; gap:10px;"></div>
+  </div>
+
+  <div class="drawer-bg" id="drawerBg"></div>
+  <div class="drawer" id="drawer">
+    <div class="drawer-head">
+      <div class="drawer-avatar" id="drawerAvatar">?</div>
+      <div>
+        <div class="drawer-name" id="drawerName"></div>
+        <div class="drawer-role" id="drawerRole"></div>
+      </div>
+    </div>
+    <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> Лобби</div>
+    <div class="drawer-item" id="drwCashier"><span class="ic">💳</span> Касса</div>
+    <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
+    <div class="drawer-item" id="drwAdmin" style="display:none;"><span class="ic">⚙️</span> Админка</div>
+    <div class="drawer-item danger" id="drwLogout"><span class="ic">↩</span> Выход</div>
   </div>
 
   <!-- AUTH -->
   <div id="authView" class="limited">
+    <div class="logo-mark"><div class="spade">♠</div><div class="spark">✦</div></div>
     <div class="brand">SVARA STARS<span class="sub">приватный карточный клуб — вход только по аккаунту</span></div>
     <div class="tabbar">
       <div class="tabbtn active" data-authtab="login">Вход</div>
@@ -170,7 +232,10 @@
       <label>Логин</label><input type="text" id="regUser" maxlength="20" placeholder="латиница/цифры, без пробелов">
       <label>Пароль</label><input type="password" id="regPass">
       <p class="hint" style="margin:6px 0 0;">Минимум 6 символов.</p>
-      <button class="btn secondary" id="regBtn">Создать аккаунт</button>
+      <label style="display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:0; font-size:12.5px; color:var(--ivory); margin-top:14px; cursor:pointer;">
+        <input type="checkbox" id="regRules" style="width:auto; margin:0;"> Принимаю <span style="color:var(--gold); text-decoration:underline; margin-left:3px;" id="rulesLinkText">Правила клуба</span>
+      </label>
+      <button class="btn secondary" id="regBtn" disabled>Создать аккаунт</button>
       <div class="err" id="regErr"></div>
     </div>
   </div>
@@ -263,6 +328,52 @@ function showOnly(ids){
   });
 }
 
+/* ===================== ПРАВИЛА КЛУБА / ЧЕКБОКС РЕГИСТРАЦИИ ===================== */
+const CLUB_RULES_TEXT = `
+  <p class="hint">1. Игра ведётся исключительно на виртуальные фишки клуба — они не являются деньгами и не подлежат обмену вне клуба.</p>
+  <p class="hint">2. Баланс фишек пополняет и списывает только администратор клуба вручную.</p>
+  <p class="hint">3. Уважайте других игроков за столом — оскорбления и читерство ведут к блокировке аккаунта.</p>
+  <p class="hint">4. Один аккаунт — один игрок. Передавать доступ к аккаунту другим лицам нельзя.</p>
+`;
+function showRulesModal(){
+  showModal(`<h4>Правила клуба</h4>${CLUB_RULES_TEXT}<button class="btn secondary" id="mRulesClose">Понятно</button>`);
+  document.getElementById('mRulesClose').addEventListener('click', closeModal);
+}
+document.getElementById('rulesLinkText').addEventListener('click', (e)=>{ e.preventDefault(); showRulesModal(); });
+document.getElementById('regRules').addEventListener('change', (e)=>{
+  document.getElementById('regBtn').disabled = !e.target.checked;
+});
+
+/* ===================== БУРГЕР-МЕНЮ ===================== */
+function openDrawer(){
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerBg').classList.add('open');
+}
+function closeDrawer(){
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerBg').classList.remove('open');
+}
+document.getElementById('menuBtn').addEventListener('click', openDrawer);
+document.getElementById('drawerBg').addEventListener('click', closeDrawer);
+document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
+document.getElementById('drwCashier').addEventListener('click', ()=>{ closeDrawer(); openCashier(); });
+document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
+document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
+document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer(); logout(); });
+
+function openCashier(){
+  if(CASHIER_TELEGRAM_URL){
+    window.open(CASHIER_TELEGRAM_URL, '_blank');
+  } else {
+    showModal(`
+      <h4>Касса</h4>
+      <p class="hint">Ссылка на Telegram-администратора ещё не подключена. Как только владелец клуба её добавит, эта кнопка будет сразу открывать чат с ним.</p>
+      <button class="btn secondary" id="mCashierClose">Понятно</button>
+    `);
+    document.getElementById('mCashierClose').addEventListener('click', closeModal);
+  }
+}
+
 /* ===================== API HELPERS ===================== */
 async function api(path, method, body){
   const res = await fetch(API + path, {
@@ -335,28 +446,13 @@ function connectSocket(){
 /* ===================== TOPBAR ===================== */
 function renderTopbar(){
   const right = document.getElementById('topbarRight');
-  right.innerHTML = `
-    <span class="user-chip"><b>${me.username}</b>${me.isAdmin?' · админ':''}</span>
-    <button class="btn small" id="tbCashier" style="margin-top:0;">Касса</button>
-    <span class="linklike" id="tbDash">кошелёк</span>
-    ${me.isAdmin?'<span class="linklike" id="tbAdmin">админка</span>':''}
-    <span class="linklike" id="tbLogout">выйти</span>
-  `;
-  document.getElementById('tbDash').addEventListener('click', enterDashboard);
-  if(me.isAdmin) document.getElementById('tbAdmin').addEventListener('click', enterAdmin);
-  document.getElementById('tbLogout').addEventListener('click', logout);
-  document.getElementById('tbCashier').addEventListener('click', ()=>{
-    if(CASHIER_TELEGRAM_URL){
-      window.open(CASHIER_TELEGRAM_URL, '_blank');
-    } else {
-      showModal(`
-        <h4>Касса</h4>
-        <p class="hint">Ссылка на Telegram-администратора ещё не подключена. Как только владелец клуба её добавит, эта кнопка будет сразу открывать чат с ним.</p>
-        <button class="btn secondary" id="mCashierClose">Понятно</button>
-      `);
-      document.getElementById('mCashierClose').addEventListener('click', closeModal);
-    }
-  });
+  right.innerHTML = `<div class="icon-btn" id="tbCashier" title="Касса">💳</div>`;
+  document.getElementById('tbCashier').addEventListener('click', openCashier);
+
+  document.getElementById('drawerAvatar').textContent = me.username.slice(0,1).toUpperCase();
+  document.getElementById('drawerName').textContent = me.username;
+  document.getElementById('drawerRole').textContent = me.isAdmin ? 'Администратор' : 'Игрок';
+  document.getElementById('drwAdmin').style.display = me.isAdmin ? '' : 'none';
 }
 
 /* ===================== DASHBOARD ===================== */
@@ -398,15 +494,32 @@ document.getElementById('joinByCodeBtn').addEventListener('click', ()=>{
   promptBuyInAndJoin(code);
 });
 
+const CHIP_DENOMS = [100, 250, 500, 1000, 2500, 5000];
+function chipGridHtml(inputId){
+  return `<div class="chip-grid">${CHIP_DENOMS.map(v => `<div class="chip-btn" data-chipfor="${inputId}" data-val="${v}">${v}</div>`).join('')}</div>`;
+}
+function wireChipGrid(inputId){
+  document.querySelectorAll(`[data-chipfor="${inputId}"]`).forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      document.querySelectorAll(`[data-chipfor="${inputId}"]`).forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');
+      document.getElementById(inputId).value = btn.dataset.val;
+    });
+  });
+}
+
 document.getElementById('createTableBtn').addEventListener('click', ()=>{
   showModal(`
     <h4>Новый стол</h4>
     <label>Ставка/анте</label><input type="number" id="mBetUnit" value="20" min="5" step="5">
-    <label>Ваш бай-ин</label><input type="number" id="mBuyIn" value="200" min="20" step="10">
+    <label>Выберите размер бай-ина</label>
+    ${chipGridHtml('mBuyIn')}
+    <input type="number" id="mBuyIn" value="500" min="20" step="10">
     <div class="err" id="mErr"></div>
     <button class="btn" id="mConfirm">Создать и сесть</button>
     <button class="btn secondary" id="mCancel">Отмена</button>
   `);
+  wireChipGrid('mBuyIn');
   document.getElementById('mCancel').addEventListener('click', closeModal);
   document.getElementById('mConfirm').addEventListener('click', ()=>{
     const betUnit = parseInt(document.getElementById('mBetUnit').value) || 20;
@@ -424,11 +537,14 @@ function promptBuyInAndJoin(code){
   const errEl = document.getElementById('dashErr');
   showModal(`
     <h4>Сесть за стол ${code}</h4>
-    <label>Ваш бай-ин</label><input type="number" id="mBuyIn2" value="200" min="10" step="10">
+    <label>Выберите размер бай-ина</label>
+    ${chipGridHtml('mBuyIn2')}
+    <input type="number" id="mBuyIn2" value="500" min="10" step="10">
     <div class="err" id="mErr2"></div>
     <button class="btn" id="mConfirm2">Сесть за стол</button>
     <button class="btn secondary" id="mCancel2">Отмена</button>
   `);
+  wireChipGrid('mBuyIn2');
   document.getElementById('mCancel2').addEventListener('click', closeModal);
   document.getElementById('mConfirm2').addEventListener('click', ()=>{
     const buyIn = parseInt(document.getElementById('mBuyIn2').value) || 100;
