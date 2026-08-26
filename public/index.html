@@ -1519,10 +1519,12 @@ function handPointsClient(hand){
 function describeHandClient(hand){
   const ranks = hand.map(c=>c.r), suits = hand.map(c=>c.s);
   const pts = handPointsClient(hand);
-  if(new Set(ranks).size===1) return `Тройка (свара!) · ${pts}`;
+  // "Свара!" — именно три туза, а не любая тройка одинаковых карт (только
+  // тогда рука всегда побеждает, независимо от очков — остальное сравнивается по очкам).
+  if(ranks.every(r=>r==='A')) return `Тройка (свара!) · ${pts}`;
   if(new Set(suits).size===1) return `Флеш · ${pts}`;
   const counts = {}; ranks.forEach(r=>counts[r]=(counts[r]||0)+1);
-  if(Object.values(counts).includes(2)) return `Пара · ${pts}`;
+  if(Object.values(counts).includes(2) || Object.values(counts).includes(3)) return `Пара · ${pts}`;
   return `Старшая карта · ${pts}`;
 }
 
