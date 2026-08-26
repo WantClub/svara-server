@@ -180,8 +180,15 @@ function resolveIfDone(room) {
       if (bestScore === null || compareScores(sc, bestScore) > 0) { bestScore = sc; winners = [i]; }
       else if (compareScores(sc, bestScore) === 0) winners.push(i);
     });
+    // Делим банк поровну между победителями (при ничьей). Если банк не
+    // делится нацело — остаток раньше просто "исчезал" (терялся при
+    // округлении вниз). Теперь раздаём остаток по одной фишке первым
+    // победителям по очереди, чтобы ни одна фишка банка не пропадала.
     const share = Math.floor(room.pot / winners.length);
-    winners.forEach(i => room.seats[i].chips += share);
+    const remainder = room.pot - share * winners.length;
+    winners.forEach((i, idx) => {
+      room.seats[i].chips += share + (idx < remainder ? 1 : 0);
+    });
     room.lastWinner = winners.map(i => room.seats[i].username);
     room.log.push(`Вскрытие: ${active.map(i => `${room.seats[i].username} — ${describeHand(room.seats[i].hand)}`).join('; ')}.`);
     room.log.push(`Банк ${room.pot} забирает: ${room.lastWinner.join(', ')}.`);
