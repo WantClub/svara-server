@@ -176,7 +176,7 @@ function resolveIfDone(room) {
   // раздачу. У игрока с 0 фишек в принципе нечего больше решать.
   const allMatched = active.every(i => {
     const seat = room.seats[i];
-    if (seat.chips === 0) return true;
+    if (seat.chips <= 0) return true;
     return seat.hasActed && seat.betThisRound === room.currentHighBet;
   });
   if (allMatched) {
