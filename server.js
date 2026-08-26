@@ -504,6 +504,15 @@ function scheduleAutoNextHand(room) {
     if (!fresh || fresh.phase !== 'handEnd') return;
     const result = game.nextHandReset(fresh);
     if (result.ok) {
+      // Игроки, у которых закончились фишки, больше не могут играть дальше —
+      // нет смысла держать за ними место, пока за столом ждут другие. Перед
+      // следующей раздачей автоматически освобождаем их места.
+      fresh.seats.forEach((s, idx) => {
+        if (s && s.chips <= 0) {
+          fresh.log.push(`${s.username} автоматически встал(а) из-за стола — закончились фишки.`);
+          cashOutSeat(fresh, idx);
+        }
+      });
       tryAutoDeal(fresh);
       broadcastRoom(fresh.code);
       broadcastLobby();
