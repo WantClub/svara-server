@@ -99,7 +99,9 @@ function nextActiveIndex(room, fromIdx) {
   for (let k = 0; k < n; k++) {
     i = (i + 1) % n;
     const s = room.seats[i];
-    if (s && s.inHand && !s.folded) return i;
+    // Игроку, у которого уже 0 фишек (полный ва-банк), больше нечем ходить —
+    // ему не должны передавать ход вообще, как и в настоящем покере.
+    if (s && s.inHand && !s.folded && s.chips > 0) return i;
   }
   return null;
 }
