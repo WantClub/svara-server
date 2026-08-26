@@ -13,11 +13,16 @@ const PAYTABLE = [
 const TOTAL_WEIGHT = PAYTABLE.reduce((a, s) => a + s.weight, 0); // = 100
 
 const MACHINES = {
-  fruits: { name: 'Фрукты Classic', symbols: ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'] },
-  egypt:  { name: 'Золото Египта',  symbols: ['🐫', '🏺', '🔺', '👁️', '👑', '💰'] },
-  space:  { name: 'Космо Джекпот',  symbols: ['🌟', '🌙', '🚀', '🪐', '🛸', '👽'] },
-  ocean:  { name: 'Глубина Океана', symbols: ['🐚', '🐟', '🦀', '⚓', '🧜‍♀️', '🦪'] },
-  gold:   { name: 'Золотая Лихорадка', symbols: ['🪨', '⛏️', '🐴', '🚂', '👑', '🪙'] },
+  fruits:    { name: 'Фрукты Classic',    symbols: ['🍒', '🍋', '🔔', '⭐', '💎', '7️⃣'] },
+  egypt:     { name: 'Золото Египта',     symbols: ['🐫', '🏺', '🔺', '👁️', '👑', '💰'] },
+  space:     { name: 'Космо Джекпот',     symbols: ['🌟', '🌙', '🚀', '🪐', '🛸', '👽'] },
+  ocean:     { name: 'Глубина Океана',    symbols: ['🐚', '🐟', '🦀', '⚓', '🧜‍♀️', '🦪'] },
+  gold:      { name: 'Золотая Лихорадка', symbols: ['🪨', '⛏️', '🐴', '🚂', '👑', '🪙'] },
+  halloween: { name: 'Хэллоуин',          symbols: ['🕷️', '👻', '🦇', '🌙', '🎃', '💀'] },
+  jungle:    { name: 'Джунгли',           symbols: ['🌴', '🐒', '🦜', '🐘', '🐯', '🦁'] },
+  music:     { name: 'Рок-н-Ролл',        symbols: ['🎵', '🎧', '💿', '🎹', '🎤', '🎸'] },
+  dragons:   { name: 'Драконы и Магия',   symbols: ['🛡️', '⚔️', '🏰', '🔮', '🧙', '🐉'] },
+  wildwest:  { name: 'Дикий Запад',       symbols: ['🌵', '🐎', '🤠', '⭐', '🔫', '💰' ] },
 };
 const DEFAULT_MACHINE = 'fruits';
 
