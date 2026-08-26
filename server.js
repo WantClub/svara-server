@@ -727,3 +727,21 @@ function gracefulShutdown(signal) {
 }
 process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// ===================== ЗАЩИТА ОТ ВНЕЗАПНОГО КРАША =====================
+// Раньше защита срабатывала только при плановой остановке (SIGTERM) —
+// например, когда нажимают "Manual Deploy". Но сервер может упасть и
+// САМ, из-за необработанной ошибки в коде ("Exited with status 1" от
+// Render) — и в этом случае SIGTERM не приходит вообще, защита не
+// срабатывала, и фишки игроков, сидящих за столом, терялись. Теперь
+// сохраняем фишки и в этом сценарии тоже, перед тем как процесс упадёт.
+process.on('uncaughtException', (err) => {
+  console.error('НЕОБРАБОТАННАЯ ОШИБКА — сохраняем фишки активных столов перед аварийным завершением:', err);
+  try { cashOutAllActiveRooms(); } catch (e) { console.error('Ошибка при аварийном сохранении фишек:', e); }
+  process.exit(1);
+});
+process.on('unhandledRejection', (reason) => {
+  console.error('НЕОБРАБОТАННЫЙ REJECTION — сохраняем фишки активных столов перед аварийным завершением:', reason);
+  try { cashOutAllActiveRooms(); } catch (e) { console.error('Ошибка при аварийном сохранении фишек:', e); }
+  process.exit(1);
+});
