@@ -370,6 +370,28 @@
 
   /* ===== Слоты ===== */
   .slot-machine{background:var(--surface); border:2px solid var(--gold-dim); border-radius:12px; padding:20px; display:flex; justify-content:center; gap:10px; margin:14px 0;}
+  .slot-machines-grid{display:grid; grid-template-columns:1fr; gap:16px; margin-top:16px;}
+  @media(min-width:640px){ .slot-machines-grid{grid-template-columns:1fr 1fr;} }
+  @media(min-width:960px){ .slot-machines-grid{grid-template-columns:1fr 1fr 1fr;} }
+  .slot-machine-card{
+    position:relative; overflow:hidden; border-radius:16px; padding:22px 18px;
+    background: radial-gradient(circle at 25% 15%, rgba(255,255,255,0.10), transparent 55%), var(--slot-grad, linear-gradient(145deg, #1c1c1c, #050505));
+    border:1px solid rgba(255,255,255,0.08);
+    cursor:pointer; transition: transform 0.15s ease, box-shadow 0.15s ease;
+    box-shadow:0 10px 26px rgba(0,0,0,0.45);
+  }
+  .slot-machine-card:hover{ transform:translateY(-3px); box-shadow:0 16px 34px rgba(0,0,0,0.55); }
+  .slot-machine-card .symbols-row{font-size:34px; letter-spacing:2px; margin-bottom:14px; text-shadow:0 4px 10px rgba(0,0,0,0.5);}
+  .slot-machine-card h4{margin:0 0 6px; font-family:var(--font-display); font-size:17px; color:#fff; letter-spacing:0.02em;}
+  .slot-machine-card .rtp-badge{
+    display:inline-block; margin-top:10px; font-family:var(--font-mono); font-size:10.5px;
+    color:rgba(255,255,255,0.75); background:rgba(0,0,0,0.35); border:1px solid rgba(255,255,255,0.18);
+    padding:3px 9px; border-radius:20px;
+  }
+  .slot-machine-card .play-hint{
+    margin-top:14px; font-family:var(--font-display); font-size:12px; letter-spacing:0.08em;
+    color:#fff; opacity:0.85; text-transform:uppercase;
+  }
   .reel{width:70px; height:80px; background:#000; border:1px solid var(--panel-line); border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:34px;}
   .reel.spinning{animation:reelSpin 0.15s linear infinite;}
   @keyframes reelSpin{ 0%{transform:translateY(-6px);} 50%{transform:translateY(6px);} 100%{transform:translateY(-6px);} }
@@ -470,9 +492,19 @@
 
   <!-- SPORT -->
   <!-- SLOTS -->
-  <div id="slotsView" class="limited" style="display:none;">
+  <!-- SLOTS: выбор автомата -->
+  <div id="slotsPickerView" class="wide" style="display:none;">
     <div class="card-panel">
       <h3>Слоты</h3>
+      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача у всех автоматов около 91% — как в обычном игровом автомате.</p>
+      <div class="slot-machines-grid" id="slotMachinesGrid"></div>
+    </div>
+  </div>
+
+  <div id="slotsView" class="limited" style="display:none;">
+    <div class="card-panel">
+      <div class="linklike" id="backToSlotsPicker" style="margin-bottom:10px;">← выбрать другой автомат</div>
+      <h3 id="slotMachineTitle">Слоты</h3>
       <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача около 91% — как в обычном игровом автомате.</p>
       <div class="slot-machine">
         <div class="reel" id="reel1">🍒</div>
@@ -484,11 +516,7 @@
       <div class="chip-grid" id="slotChipGrid"></div>
       <input type="number" id="slotBetInput" value="50" min="1" step="10">
       <button class="btn" id="slotSpinBtn" style="margin-top:14px;">Крутить</button>
-      <div class="paytable">
-        <div>🍒🍒🍒 — <b>×5</b> &nbsp; 🍋🍋🍋 — <b>×8</b> &nbsp; 🔔🔔🔔 — <b>×15</b></div>
-        <div>⭐⭐⭐ — <b>×35</b> &nbsp; 💎💎💎 — <b>×70</b> &nbsp; 7️⃣7️⃣7️⃣ — <b>×150</b></div>
-        <div>Любая пара одинаковых — <b>×0.65</b></div>
-      </div>
+      <div class="paytable" id="slotPaytable"></div>
     </div>
     <div class="card-panel">
       <h3>Последние спины</h3>
@@ -615,7 +643,7 @@ let socket = null;
 let roomCode = "";
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','slotsView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -649,7 +677,6 @@ document.getElementById('menuBtn').addEventListener('click', openDrawer);
 document.getElementById('drawerBg').addEventListener('click', closeDrawer);
 document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
 document.getElementById('drwSport').addEventListener('click', ()=>{ closeDrawer(); enterSport(); });
-document.getElementById('drwSlots').addEventListener('click', ()=>{ closeDrawer(); enterSlots(); });
 document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
 document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer(); logout(); });
@@ -963,9 +990,74 @@ async function refreshMyBets(){
 
 /* ===================== СЛОТЫ ===================== */
 const SLOT_BET_CHIPS = [10, 25, 50, 100, 250, 500];
-async function enterSlots(){
+// Современные градиенты для каждой тематики — id должны совпадать с теми,
+// что возвращает сервер (slots.js -> MACHINES).
+const SLOT_MACHINE_STYLES = {
+  fruits: 'linear-gradient(145deg, #7a1f2b, #2c0d12)',
+  egypt:  'linear-gradient(145deg, #6b4a12, #241a05)',
+  space:  'linear-gradient(145deg, #1a1a5e, #05051a)',
+  ocean:  'linear-gradient(145deg, #0a4a5e, #021a22)',
+  gold:   'linear-gradient(145deg, #8a6a14, #2b2005)',
+};
+let slotMachinesCache = [];
+let slotPayoutsCache = [];
+let slotPairMultiplierCache = 0.65;
+let currentSlotMachineId = null;
+
+async function enterSlotsPicker(){
+  showOnly(['topbar','slotsPickerView']);
+  renderTopbar();
+  const grid = document.getElementById('slotMachinesGrid');
+  grid.innerHTML = '<div class="hint">Загрузка автоматов…</div>';
+  try{
+    const data = await api('/api/slots/machines', 'GET');
+    slotMachinesCache = data.machines;
+    slotPayoutsCache = data.payouts;
+    slotPairMultiplierCache = data.pairMultiplier;
+  }catch(e){
+    grid.innerHTML = `<div class="err">${e.message}</div>`;
+    return;
+  }
+  grid.innerHTML = slotMachinesCache.map(m => `
+    <div class="slot-machine-card" data-machine="${m.id}" style="--slot-grad:${SLOT_MACHINE_STYLES[m.id] || SLOT_MACHINE_STYLES.fruits};">
+      <div class="symbols-row">${m.symbols.slice(0,3).join(' ')}</div>
+      <h4>${m.name}</h4>
+      <span class="rtp-badge">отдача ~91%</span>
+      <div class="play-hint">▶ Играть</div>
+    </div>
+  `).join('');
+  grid.querySelectorAll('[data-machine]').forEach(card=>{
+    card.addEventListener('click', ()=> enterSlots(card.dataset.machine));
+  });
+}
+document.getElementById('drwSlots').addEventListener('click', ()=>{ closeDrawer(); enterSlotsPicker(); });
+document.getElementById('backToSlotsPicker').addEventListener('click', enterSlotsPicker);
+
+async function enterSlots(machineId){
+  currentSlotMachineId = machineId;
   showOnly(['topbar','slotsView']);
   renderTopbar();
+
+  if(!slotMachinesCache.length){
+    try{
+      const data = await api('/api/slots/machines', 'GET');
+      slotMachinesCache = data.machines;
+      slotPayoutsCache = data.payouts;
+      slotPairMultiplierCache = data.pairMultiplier;
+    }catch(e){}
+  }
+  const machine = slotMachinesCache.find(m => m.id === machineId) || slotMachinesCache[0];
+  if(machine){
+    document.getElementById('slotMachineTitle').textContent = machine.name;
+    ['reel1','reel2','reel3'].forEach(id => { document.getElementById(id).textContent = machine.symbols[0]; });
+    const payLines = machine.symbols.map((s,i) => `${s}${s}${s} — <b>×${slotPayoutsCache[i]}</b>`);
+    document.getElementById('slotPaytable').innerHTML = `
+      <div>${payLines.slice(0,3).join(' &nbsp; ')}</div>
+      <div>${payLines.slice(3).join(' &nbsp; ')}</div>
+      <div>Любая пара одинаковых — <b>×${slotPairMultiplierCache}</b></div>
+    `;
+  }
+
   const grid = document.getElementById('slotChipGrid');
   grid.innerHTML = SLOT_BET_CHIPS.map(v => `<div class="chip-btn" data-chipfor="slotBetInput" data-val="${v}">${v}</div>`).join('');
   wireChipGrid('slotBetInput');
@@ -988,7 +1080,7 @@ document.getElementById('slotSpinBtn').addEventListener('click', async ()=>{
   resultEl.textContent = 'Крутим…'; resultEl.className = 'slot-result';
 
   let res;
-  try{ res = await api('/api/slots/spin', 'POST', {bet}); }
+  try{ res = await api('/api/slots/spin', 'POST', {bet, machineId: currentSlotMachineId}); }
   catch(e){
     reelEls.forEach(r => r.classList.remove('spinning'));
     resultEl.textContent = e.message; slotSpinning = false; btn.disabled = false; return;

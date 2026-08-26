@@ -108,5 +108,13 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `);
 
+// Миграция: какой именно слот-автомат использовался в спине (для тех, кто
+// уже играл до появления нескольких тематик).
+try {
+  db.exec("ALTER TABLE slot_spins ADD COLUMN machine_id TEXT NOT NULL DEFAULT 'fruits'");
+} catch (e) {
+  // колонка уже существует — это нормально
+}
+
 module.exports = db;
 

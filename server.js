@@ -325,18 +325,24 @@ app.get('/api/admin/sports/matches', authMiddleware, adminMiddleware, (req, res)
 });
 
 // ===================== СЛОТЫ (фишки клуба, без реальных денег) =====================
+app.get('/api/slots/machines', authMiddleware, (req, res) => {
+  res.json({ machines: slots.listMachines(), payouts: slots.PAYTABLE.map(p => p.pay3), pairMultiplier: 0.65 });
+});
+
 app.post('/api/slots/spin', authMiddleware, (req, res) => {
   const bet = parseInt(req.body?.bet);
+  const machineId = String(req.body?.machineId || '');
   if (!Number.isFinite(bet) || bet <= 0) return res.status(400).json({ error: 'Некорректная ставка.' });
+  if (!slots.MACHINES[machineId]) return res.status(400).json({ error: 'Неизвестный автомат.' });
 
   const user = getUserByUsername(req.dbUser.username);
   if (bet > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
 
-  const result = slots.spinSlots(bet);
+  const result = slots.spinSlots(bet, machineId);
   const net = result.payout - bet;
   db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(net, user.username);
-  db.prepare('INSERT INTO slot_spins (username, bet, r1, r2, r3, payout, created_at) VALUES (?,?,?,?,?,?,?)')
-    .run(user.username, bet, result.reels[0], result.reels[1], result.reels[2], result.payout, Date.now());
+  db.prepare('INSERT INTO slot_spins (username, bet, r1, r2, r3, payout, machine_id, created_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(user.username, bet, result.reels[0], result.reels[1], result.reels[2], result.payout, machineId, Date.now());
 
   const updated = getUserByUsername(user.username);
   res.json({ ok: true, reels: result.reels, payout: result.payout, chips: updated.chips });
