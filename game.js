@@ -143,7 +143,16 @@ function resolveIfDone(room) {
     return;
   }
 
-  const allMatched = active.every(i => room.seats[i].hasActed && room.seats[i].betThisRound === room.currentHighBet);
+  // Игрок, ушедший ва-банк (фишки закончились в процессе торговли), физически
+  // не может доплатить до текущей высокой ставки — его ставка навсегда
+  // останется ниже. Раньше это блокировало завершение раздачи навечно: код
+  // ждал точного совпадения ставок у всех, а у игрока с 0 фишек оно просто
+  // никогда не наступит. Теперь считаем такого игрока "сделавшим всё, что мог"
+  // сразу после его хода, и это больше не блокирует раздачу.
+  const allMatched = active.every(i => {
+    const seat = room.seats[i];
+    return seat.hasActed && (seat.betThisRound === room.currentHighBet || seat.chips === 0);
+  });
   if (allMatched) {
     let bestScore = null, winners = [];
     active.forEach(i => {
