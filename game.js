@@ -117,16 +117,22 @@ function dealHand(room) {
   seated.forEach(i => { room.handStartChips[room.seats[i].username] = room.seats[i].chips; });
 
   const deck = newDeck();
+  let potTotal = 0;
   seated.forEach(i => {
     const s = room.seats[i];
     s.hand = [deck.pop(), deck.pop(), deck.pop()];
     s.folded = false;
     s.inHand = true;
-    s.betThisRound = room.betUnit;
+    // Анте не должно уводить игрока в минус — если фишек меньше, чем анте
+    // (сидел с остатком после прошлой раздачи), списываем ровно столько,
+    // сколько у него реально есть, и это сразу считается его ва-банком.
+    const ante = Math.min(room.betUnit, s.chips);
+    s.betThisRound = ante;
     s.hasActed = false;
-    s.chips -= room.betUnit;
+    s.chips -= ante;
+    potTotal += ante;
   });
-  room.pot = seated.length * room.betUnit;
+  room.pot = potTotal;
   room.currentHighBet = room.betUnit;
   room.phase = 'betting';
   room.handNumber += 1;
