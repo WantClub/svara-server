@@ -93,8 +93,20 @@ app.post('/api/register', authLimiter, (req, res) => {
   const isFirst = countRow.n === 0;
   const passwordHash = bcrypt.hashSync(password, 10);
 
-  db.prepare('INSERT INTO users (username, password_hash, chips, is_admin, banned, created_at) VALUES (?,?,?,?,?,?)')
-    .run(username, passwordHash, WELCOME_BONUS_CHIPS, isFirst ? 1 : 0, 0, Date.now());
+  // Защита от повторного получения приветственного бонуса через новые
+  // аккаунты: если с этого же IP уже регистрировался хоть один аккаунт —
+  // новый создаётся нормально, но БЕЗ стартового бонуса. Это не блокирует
+  // регистрацию (мало ли — общий Wi-Fi, семья), просто не даёт бонус
+  // повторно с одного и того же адреса. Не панацея (мобильный интернет,
+  // VPN легко меняют IP), но отсекает самый частый случай.
+  const regIp = req.ip || null;
+  const ipAlreadyUsed = regIp
+    ? !!db.prepare('SELECT 1 FROM users WHERE reg_ip = ? LIMIT 1').get(regIp)
+    : false;
+  const startingChips = ipAlreadyUsed ? 0 : WELCOME_BONUS_CHIPS;
+
+  db.prepare('INSERT INTO users (username, password_hash, chips, is_admin, banned, created_at, reg_ip) VALUES (?,?,?,?,?,?,?)')
+    .run(username, passwordHash, startingChips, isFirst ? 1 : 0, 0, Date.now(), regIp);
 
   const user = getUserByUsername(username);
   res.json({ token: signToken(user.username), user: toPublicUser(user), firstAdmin: isFirst });
