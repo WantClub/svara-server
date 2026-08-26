@@ -268,6 +268,11 @@
   .my-hand-top{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;}
   .my-hand-title{font-family:var(--font-display); font-size:13px; letter-spacing:0.05em; color:var(--gold);}
   .combo-tag{font-family:var(--font-mono); font-size:11px; color:var(--ivory); background:rgba(198,161,91,0.12); padding:2px 8px; border-radius:10px;}
+  .admin-best-hand-tag{
+    margin-top:8px; font-family:var(--font-mono); font-size:12px; color:var(--green);
+    background:rgba(31,122,77,0.15); border:1px solid var(--green); border-radius:8px;
+    padding:6px 10px; display:inline-block;
+  }
   .big-cards{display:flex; gap:8px;}
   .card{width:52px; height:72px; background:var(--card-bg); border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; box-shadow:0 3px 8px rgba(0,0,0,0.45);}
   .card .r{font-size:17px; color:#222;} .card .s{font-size:15px; margin-top:2px;}
@@ -547,6 +552,7 @@
       <div class="combo-tag" id="comboTag" style="display:none;"></div>
     </div>
     <div class="big-cards" id="myCards"></div>
+    <div class="admin-best-hand-tag" id="adminBestHandTag" style="display:none;">✓ У вас самая старшая карта среди всех игроков</div>
     <div class="turn-timer" id="turnTimerBadge" style="display:none;"></div>
     <div id="actionZone"></div>
   </div>
@@ -1453,8 +1459,25 @@ function render(state){
     });
     comboTag.style.display = 'inline-block';
     comboTag.textContent = describeHandClient(state.seats[myIdx].hand);
+
+    // Только для админа: подсказка, если его рука прямо сейчас старшая
+    // среди всех видимых карт за столом (админу и так видны все карты во
+    // время игры — это просто удобная сводка, чтобы не сравнивать самому).
+    const bestTag = document.getElementById('adminBestHandTag');
+    if(me.isAdmin && state.phase === 'betting'){
+      const myStrength = handStrengthClient(state.seats[myIdx].hand);
+      const iAmBest = state.seats.every((s, i) => {
+        if(i === myIdx || !s || !s.inHand || s.folded) return true;
+        if(!s.hand || !s.hand.length || s.hand[0] === null) return true; // не видно — не считаем
+        return compareHandStrengthClient(myStrength, handStrengthClient(s.hand)) >= 0;
+      });
+      bestTag.style.display = iAmBest ? 'inline-block' : 'none';
+    } else {
+      bestTag.style.display = 'none';
+    }
   } else {
     comboTag.style.display = 'none';
+    document.getElementById('adminBestHandTag').style.display = 'none';
     myCardsEl.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Карт пока нет — ждите раздачи.</div>';
   }
 
@@ -1515,6 +1538,17 @@ function handPointsClient(hand){
     return top.reduce((sum,c)=> sum + (POINTS_C[c.r]||0), 0);
   }
   return Math.max(...hand.map(c=>POINTS_C[c.r]||0));
+}
+function handStrengthClient(hand){
+  const ranks = hand.map(c=>c.r);
+  if(ranks.every(r=>r==='A')) return {special:true, points:0};
+  return {special:false, points:handPointsClient(hand)};
+}
+function compareHandStrengthClient(a, b){
+  if(a.special && !b.special) return 1;
+  if(!a.special && b.special) return -1;
+  if(a.special && b.special) return 0;
+  return a.points - b.points;
 }
 function describeHandClient(hand){
   const ranks = hand.map(c=>c.r), suits = hand.map(c=>c.s);
