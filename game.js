@@ -16,28 +16,17 @@ function newDeck() {
 
 function evaluateHand(hand) {
   const ranks = hand.map(c => c.r);
-  const suits = hand.map(c => c.s);
   const vals = ranks.map(r => RANK_VALUE[r]).sort((a, b) => b - a);
 
-  if (new Set(ranks).size === 1) return [3, vals[0]];
-  if (new Set(suits).size === 1) {
-    const pts = ranks.reduce((a, r) => a + POINTS[r], 0);
-    return [2, pts, ...vals];
-  }
-  const counts = {};
-  ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
-  const pairRank = Object.keys(counts).find(r => counts[r] === 2);
-  if (pairRank) {
-    const pv = RANK_VALUE[pairRank];
-    const kicker = vals.find(v => v !== pv);
-    return [1, pv, kicker];
-  }
-  // Категория "старшая карта": сравниваем ПО ТЕМ ЖЕ ОЧКАМ, что видит игрок
-  // (та же формула — сумма карт общей масти, либо одна старшая карта, если
-  // все три масти разные). Раньше здесь сравнивалась старшая карта по
-  // обычному покерному старшинству — это НЕ соответствовало настоящим
-  // правилам Свары и не совпадало с очками, показанными игроку, что и
-  // вызывало путаницу (у кого меньше очков — иногда неожиданно выигрывал).
+  // Тройка ("Свара!") — единственная особая категория, всегда старше всего
+  // остального, независимо от очков.
+  if (new Set(ranks).size === 1) return [1, vals[0]];
+
+  // Всё остальное (флеш / пара / старшая карта) НЕ имеет иерархии между
+  // собой — побеждают просто набранные очки (та же формула, что видит
+  // игрок). Раньше пара считалась старше "старшей карты" независимо от
+  // очков — это не соответствовало настоящим правилам этого клуба: пара с
+  // меньшими очками не должна побеждать старшую карту с большими очками.
   return [0, handPoints(hand), ...vals];
 }
 
@@ -66,10 +55,19 @@ function handPoints(hand) {
   return Math.max(...hand.map(c => POINTS[c.r] || 0));
 }
 
+function handCategoryName(hand) {
+  const ranks = hand.map(c => c.r);
+  const suits = hand.map(c => c.s);
+  if (new Set(ranks).size === 1) return "Тройка (свара!)";
+  if (new Set(suits).size === 1) return "Флеш";
+  const counts = {};
+  ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
+  if (Object.values(counts).includes(2)) return "Пара";
+  return "Старшая карта";
+}
+
 function describeHand(hand) {
-  const cat = evaluateHand(hand)[0];
-  const name = { 3: "Тройка (свара!)", 2: "Флеш", 1: "Пара", 0: "Старшая карта" }[cat];
-  return `${name} · ${handPoints(hand)}`;
+  return `${handCategoryName(hand)} · ${handPoints(hand)}`;
 }
 
 // ===================== СОСТОЯНИЕ СТОЛА =====================
