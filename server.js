@@ -671,7 +671,23 @@ io.on('connection', (socket) => {
     const room = meta && rooms.get(meta.roomCode);
     if (room) {
       const idx = room.seats.findIndex(s => s && s.username === socket.username);
-      if (idx >= 0) cashOutSeat(room, idx);
+      if (idx >= 0) {
+        // Если игрок уходит посреди активной раздачи, будучи ещё "в игре"
+        // (не спасовавшим) — раньше место просто обнулялось, а ход и
+        // проверка завершения раздачи никогда не пересчитывались. Если это
+        // как раз был его ход — очередь навсегда зависала на теперь уже
+        // пустом месте. Его ставка в банке остаётся (как при обычном пасе),
+        // но раздача должна корректно понять, что его больше нет.
+        const wasActiveInHand = room.phase === 'betting' && room.seats[idx].inHand && !room.seats[idx].folded;
+        const wasTheirTurn = room.phase === 'betting' && room.turnIndex === idx;
+        cashOutSeat(room, idx);
+        if (wasActiveInHand) {
+          if (wasTheirTurn) room.turnIndex = game.nextActiveIndex(room, idx);
+          game.resolveIfDone(room);
+          if (room.phase === 'handEnd') { logHandHistoryIfNeeded(room); scheduleAutoNextHand(room); }
+          else if (room.phase === 'betting') scheduleTurnTimer(room);
+        }
+      }
       socket.leave('table:' + room.code);
       socketMeta.set(socket.id, { username: socket.username, roomCode: null });
       broadcastRoom(room.code);

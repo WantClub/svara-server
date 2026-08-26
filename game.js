@@ -334,5 +334,5 @@ function fullStateForAdmin(room) {
 module.exports = {
   RANKS, SUITS, evaluateHand, compareScores, describeHand, newDeck,
   createRoom, seatedIndices, nextActiveIndex, dealHand, actCall, actRaise, actFold,
-  nextHandReset, redactForViewer, fullStateForAdmin
+  nextHandReset, redactForViewer, fullStateForAdmin, resolveIfDone
 };
