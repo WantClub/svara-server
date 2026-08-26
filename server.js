@@ -126,6 +126,52 @@ app.get('/api/me', authMiddleware, (req, res) => {
   res.json({ user: toPublicUser(req.dbUser) });
 });
 
+// ===================== КНОПКИ КАССЫ (настраиваются владельцем клуба) =====================
+const DEFAULT_CASHIER_BUTTONS = [
+  { label: 'КАССА', url: 'https://t.me/kassasvarastars' },
+  { label: 'КАССИР', url: 'https://t.me/kassasvarastars' }
+];
+function getSetting(key, fallback) {
+  const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(key);
+  return row ? row.value : fallback;
+}
+function setSetting(key, value) {
+  db.prepare('INSERT INTO settings (key, value) VALUES (?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+}
+function getCashierButtons() {
+  return [1, 2].map(n => ({
+    label: getSetting(`cashier_btn${n}_label`, DEFAULT_CASHIER_BUTTONS[n - 1].label),
+    url: getSetting(`cashier_btn${n}_url`, DEFAULT_CASHIER_BUTTONS[n - 1].url)
+  }));
+}
+
+app.get('/api/cashier-buttons', authMiddleware, (req, res) => {
+  res.json({ buttons: getCashierButtons() });
+});
+
+app.post('/api/admin/cashier-buttons', authMiddleware, adminMiddleware, (req, res) => {
+  const { buttons } = req.body || {};
+  if (!Array.isArray(buttons) || buttons.length !== 2) {
+    return res.status(400).json({ error: 'Нужно ровно 2 кнопки.' });
+  }
+  for (const b of buttons) {
+    if (!b || typeof b.label !== 'string' || typeof b.url !== 'string') {
+      return res.status(400).json({ error: 'У каждой кнопки должны быть текст и ссылка.' });
+    }
+    if (b.label.trim().length === 0 || b.label.length > 20) {
+      return res.status(400).json({ error: 'Текст кнопки: от 1 до 20 символов.' });
+    }
+    if (b.url.trim().length > 0 && !/^https?:\/\//.test(b.url.trim())) {
+      return res.status(400).json({ error: 'Ссылка должна начинаться с http:// или https://' });
+    }
+  }
+  buttons.forEach((b, i) => {
+    setSetting(`cashier_btn${i + 1}_label`, b.label.trim());
+    setSetting(`cashier_btn${i + 1}_url`, b.url.trim());
+  });
+  res.json({ ok: true, buttons: getCashierButtons() });
+});
+
 app.post('/api/me/avatar', authMiddleware, (req, res) => {
   const { imageData } = req.body || {};
   if (!imageData || typeof imageData !== 'string') return res.status(400).json({ error: 'Нет данных изображения.' });

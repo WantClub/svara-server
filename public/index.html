@@ -58,7 +58,8 @@
   .btn.secondary{background:transparent; border:1px solid var(--gold-dim); color:var(--gold);}
   .btn.secondary:hover{background:rgba(198,161,91,0.08);}
   .btn.small{width:auto; margin-top:0; padding:7px 12px; font-size:12px;}
-  .cashier-btn{white-space:nowrap; border-radius:20px;}
+  .cashier-btn-group{display:flex; gap:6px;}
+  .cashier-btn{white-space:nowrap; border-radius:20px; padding:6px 10px; font-size:11px;}
   .row2{display:flex; gap:10px;}
   .row2 > div{flex:1;}
   .err{color:#ff8a80; font-size:12px; margin-top:8px; min-height:16px;}
@@ -273,6 +274,9 @@
     background:rgba(31,122,77,0.15); border:1px solid var(--green); border-radius:8px;
     padding:6px 10px; display:inline-block;
   }
+  .admin-best-hand-tag.tie{
+    color:var(--gold); background:rgba(198,161,91,0.15); border-color:var(--gold-dim);
+  }
   .big-cards{display:flex; gap:8px;}
   .card{width:52px; height:72px; background:var(--card-bg); border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; box-shadow:0 3px 8px rgba(0,0,0,0.45);}
   .card .r{font-size:17px; color:#222;} .card .s{font-size:15px; margin-top:2px;}
@@ -403,7 +407,8 @@
     <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> Лобби</div>
     <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> Слоты</div>
     <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> Спорт</div>
-    <div class="drawer-item" id="drwCashier"><span class="ic">💳</span> Касса</div>
+    <div class="drawer-item" id="drwCashier1"><span class="ic">💳</span> <span id="drwCashier1Label">КАССА</span></div>
+    <div class="drawer-item" id="drwCashier2"><span class="ic">💳</span> <span id="drwCashier2Label">КАССИР</span></div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
     <div class="drawer-item" id="drwInstallApp" style="display:none;"><span class="ic">📲</span> Установить приложение</div>
     <div class="drawer-item" id="drwAdmin" style="display:none;"><span class="ic">⚙️</span> Админка</div>
@@ -534,6 +539,26 @@
       <p class="hint">Гипотетическая цифра по всем столам сразу — сколько составил бы рейк, если бы он был. Ничего не удерживается у игроков.</p>
       <div class="stat-row" id="rakeStatRow"></div>
     </div>
+    <div class="card-panel">
+      <h3>Кнопки кассы</h3>
+      <p class="hint">Текст и ссылка обеих кнопок кассы (в шапке сайта и в меню). Обе можно направить хоть на один и тот же Telegram-аккаунт.</p>
+      <div class="row2">
+        <div>
+          <label>Текст кнопки 1</label>
+          <input type="text" id="cashierLabel1" maxlength="20" placeholder="КАССА">
+          <label>Ссылка кнопки 1</label>
+          <input type="text" id="cashierUrl1" placeholder="https://t.me/username">
+        </div>
+        <div>
+          <label>Текст кнопки 2</label>
+          <input type="text" id="cashierLabel2" maxlength="20" placeholder="КАССИР">
+          <label>Ссылка кнопки 2</label>
+          <input type="text" id="cashierUrl2" placeholder="https://t.me/username">
+        </div>
+      </div>
+      <button class="btn secondary" id="saveCashierBtn" style="max-width:260px;">Сохранить</button>
+      <div class="err" id="cashierSettingsErr"></div>
+    </div>
   </div>
 
   <!-- TABLE -->
@@ -560,7 +585,7 @@
       <div class="combo-tag" id="comboTag" style="display:none;"></div>
     </div>
     <div class="big-cards" id="myCards"></div>
-    <div class="admin-best-hand-tag" id="adminBestHandTag" style="display:none;">✓ У вас самая старшая карта среди всех игроков</div>
+    <div class="admin-best-hand-tag" id="adminBestHandTag" style="display:none;"></div>
     <div class="turn-timer" id="turnTimerBadge" style="display:none;"></div>
     <div id="actionZone"></div>
   </div>
@@ -582,7 +607,10 @@ const API = ''; // тот же домен, что и сайт
 
 // Ссылка на Telegram админа для пополнения/вопросов по кассе.
 // Когда определишься с юзернеймом — впиши сюда вида 'https://t.me/твой_юзернейм'.
-const CASHIER_TELEGRAM_URL = 'https://t.me/kassasvarastars';
+let cashierButtons = [
+  { label: 'КАССА', url: '' },
+  { label: 'КАССИР', url: '' }
+];
 let token = localStorage.getItem('svara_token') || null;
 let me = null; // {username, chips, isAdmin}
 let socket = null;
@@ -624,22 +652,33 @@ document.getElementById('drawerBg').addEventListener('click', closeDrawer);
 document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
 document.getElementById('drwSport').addEventListener('click', ()=>{ closeDrawer(); enterSport(); });
 document.getElementById('drwSlots').addEventListener('click', ()=>{ closeDrawer(); enterSlots(); });
-document.getElementById('drwCashier').addEventListener('click', ()=>{ closeDrawer(); openCashier(); });
+document.getElementById('drwCashier1').addEventListener('click', ()=>{ closeDrawer(); openCashierButton(0); });
+document.getElementById('drwCashier2').addEventListener('click', ()=>{ closeDrawer(); openCashierButton(1); });
 document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
 document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer(); logout(); });
 
-function openCashier(){
-  if(CASHIER_TELEGRAM_URL){
-    window.open(CASHIER_TELEGRAM_URL, '_blank');
+function openCashierButton(idx){
+  const btn = cashierButtons[idx];
+  if(btn && btn.url){
+    window.open(btn.url, '_blank');
   } else {
     showModal(`
-      <h4>Касса</h4>
-      <p class="hint">Ссылка на Telegram-администратора ещё не подключена. Как только владелец клуба её добавит, эта кнопка будет сразу открывать чат с ним.</p>
+      <h4>${btn ? btn.label : 'Касса'}</h4>
+      <p class="hint">Ссылка на Telegram-администратора ещё не подключена. Как только владелец клуба её добавит в админке, эта кнопка будет сразу открывать чат с ним.</p>
       <button class="btn secondary" id="mCashierClose">Понятно</button>
     `);
     document.getElementById('mCashierClose').addEventListener('click', closeModal);
   }
+}
+async function loadCashierButtons(){
+  try{
+    const data = await api('/api/cashier-buttons', 'GET');
+    cashierButtons = data.buttons;
+    document.getElementById('drwCashier1Label').textContent = cashierButtons[0].label;
+    document.getElementById('drwCashier2Label').textContent = cashierButtons[1].label;
+    renderTopbar();
+  }catch(e){}
 }
 
 /* ===================== API HELPERS ===================== */
@@ -719,8 +758,14 @@ function connectSocket(){
 /* ===================== TOPBAR ===================== */
 function renderTopbar(){
   const right = document.getElementById('topbarRight');
-  right.innerHTML = `<button class="btn small cashier-btn" id="tbCashier">💳 Касса</button>`;
-  document.getElementById('tbCashier').addEventListener('click', openCashier);
+  right.innerHTML = `
+    <div class="cashier-btn-group">
+      <button class="btn small cashier-btn" id="tbCashier1">💳 ${cashierButtons[0].label}</button>
+      <button class="btn small cashier-btn" id="tbCashier2">💳 ${cashierButtons[1].label}</button>
+    </div>
+  `;
+  document.getElementById('tbCashier1').addEventListener('click', ()=>openCashierButton(0));
+  document.getElementById('tbCashier2').addEventListener('click', ()=>openCashierButton(1));
 
   const drawerAv = document.getElementById('drawerAvatar');
   const letter = me.username.slice(0,1).toUpperCase();
@@ -1047,7 +1092,34 @@ async function enterAdmin(){
   refreshAdminTables();
   refreshSlotsStats();
   refreshRakeStats();
+  loadCashierSettingsForm();
 }
+async function loadCashierSettingsForm(){
+  try{
+    const data = await api('/api/cashier-buttons', 'GET');
+    document.getElementById('cashierLabel1').value = data.buttons[0].label;
+    document.getElementById('cashierUrl1').value = data.buttons[0].url;
+    document.getElementById('cashierLabel2').value = data.buttons[1].label;
+    document.getElementById('cashierUrl2').value = data.buttons[1].url;
+  }catch(e){}
+}
+document.getElementById('saveCashierBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('cashierSettingsErr'); errEl.textContent = '';
+  const buttons = [
+    { label: document.getElementById('cashierLabel1').value, url: document.getElementById('cashierUrl1').value },
+    { label: document.getElementById('cashierLabel2').value, url: document.getElementById('cashierUrl2').value }
+  ];
+  try{
+    await api('/api/admin/cashier-buttons', 'POST', { buttons });
+    await loadCashierButtons();
+    errEl.style.color = 'var(--green)';
+    errEl.textContent = 'Сохранено!';
+    setTimeout(()=>{ errEl.textContent = ''; errEl.style.color = ''; }, 2000);
+  }catch(e){
+    errEl.style.color = '';
+    errEl.textContent = e.message;
+  }
+});
 async function refreshSlotsStats(){
   const el = document.getElementById('slotsStatRow');
   let data;
@@ -1488,18 +1560,34 @@ function render(state){
     comboTag.style.display = 'inline-block';
     comboTag.textContent = describeHandClient(state.seats[myIdx].hand);
 
-    // Только для админа: подсказка, если его рука прямо сейчас старшая
-    // среди всех видимых карт за столом (админу и так видны все карты во
-    // время игры — это просто удобная сводка, чтобы не сравнивать самому).
+    // Только для админа: подсказка о том, как его рука соотносится с
+    // остальными видимыми картами за столом (админу и так видны все карты
+    // во время игры — это просто удобная сводка, чтобы не сравнивать
+    // самому). Отдельно учитываем честную ничью — банк в этом случае
+    // разделится, и подсказка не должна звучать так, будто победа
+    // единоличная.
     const bestTag = document.getElementById('adminBestHandTag');
     if(me.isAdmin && state.phase === 'betting'){
       const myStrength = handStrengthClient(state.seats[myIdx].hand);
-      const iAmBest = state.seats.every((s, i) => {
-        if(i === myIdx || !s || !s.inHand || s.folded) return true;
-        if(!s.hand || !s.hand.length || s.hand[0] === null) return true; // не видно — не считаем
-        return compareHandStrengthClient(myStrength, handStrengthClient(s.hand)) >= 0;
+      let beatenByAnyone = false, tiedWithAnyone = false;
+      state.seats.forEach((s, i) => {
+        if(i === myIdx || !s || !s.inHand || s.folded) return;
+        if(!s.hand || !s.hand.length || s.hand[0] === null) return; // не видно — не считаем
+        const cmp = compareHandStrengthClient(myStrength, handStrengthClient(s.hand));
+        if(cmp < 0) beatenByAnyone = true;
+        else if(cmp === 0) tiedWithAnyone = true;
       });
-      bestTag.style.display = iAmBest ? 'inline-block' : 'none';
+      if(beatenByAnyone){
+        bestTag.style.display = 'none';
+      } else if(tiedWithAnyone){
+        bestTag.style.display = 'inline-block';
+        bestTag.classList.add('tie');
+        bestTag.textContent = '= У вас ничья за лучшую руку — банк разделится';
+      } else {
+        bestTag.style.display = 'inline-block';
+        bestTag.classList.remove('tie');
+        bestTag.textContent = '✓ У вас самая старшая карта среди всех игроков';
+      }
     } else {
       bestTag.style.display = 'none';
     }
@@ -1635,6 +1723,7 @@ window.addEventListener('appinstalled', () => {
     const data = await api('/api/me', 'GET');
     me = data.user;
     connectSocket();
+    await loadCashierButtons();
     await enterDashboard();
   }catch(e){
     logout();
