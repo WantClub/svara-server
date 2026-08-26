@@ -407,8 +407,6 @@
     <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> Лобби</div>
     <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> Слоты</div>
     <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> Спорт</div>
-    <div class="drawer-item" id="drwCashier1"><span class="ic">💳</span> <span id="drwCashier1Label">КАССА</span></div>
-    <div class="drawer-item" id="drwCashier2"><span class="ic">💳</span> <span id="drwCashier2Label">КАССИР</span></div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
     <div class="drawer-item" id="drwInstallApp" style="display:none;"><span class="ic">📲</span> Установить приложение</div>
     <div class="drawer-item" id="drwAdmin" style="display:none;"><span class="ic">⚙️</span> Админка</div>
@@ -652,8 +650,6 @@ document.getElementById('drawerBg').addEventListener('click', closeDrawer);
 document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
 document.getElementById('drwSport').addEventListener('click', ()=>{ closeDrawer(); enterSport(); });
 document.getElementById('drwSlots').addEventListener('click', ()=>{ closeDrawer(); enterSlots(); });
-document.getElementById('drwCashier1').addEventListener('click', ()=>{ closeDrawer(); openCashierButton(0); });
-document.getElementById('drwCashier2').addEventListener('click', ()=>{ closeDrawer(); openCashierButton(1); });
 document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
 document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer(); logout(); });
@@ -675,8 +671,6 @@ async function loadCashierButtons(){
   try{
     const data = await api('/api/cashier-buttons', 'GET');
     cashierButtons = data.buttons;
-    document.getElementById('drwCashier1Label').textContent = cashierButtons[0].label;
-    document.getElementById('drwCashier2Label').textContent = cashierButtons[1].label;
     renderTopbar();
   }catch(e){}
 }
