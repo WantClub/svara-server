@@ -187,7 +187,7 @@ app.post('/api/me/avatar', authMiddleware, (req, res) => {
 
 // ===================== ADMIN ROUTES =====================
 app.get('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
-  const rows = db.prepare('SELECT username, chips, is_admin, banned, created_at FROM users ORDER BY created_at ASC').all();
+  const rows = db.prepare('SELECT username, chips, is_admin, banned, created_at FROM users ORDER BY created_at DESC').all();
   res.json({ users: rows.map(u => ({ username: u.username, chips: u.chips, isAdmin: !!u.is_admin, banned: !!u.banned, createdAt: u.created_at })) });
 });
 
