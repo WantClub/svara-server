@@ -1007,6 +1007,21 @@ const SLOT_MACHINE_STYLES = {
   dragons:   'linear-gradient(145deg, #5e0a1a, #150205)',
   wildwest:  'linear-gradient(145deg, #6b451a, #1f1004)',
 };
+// Для остальных (сгенерированных) автоматов вручную прописывать цвет каждому
+// нереально — считаем градиент автоматически по хешу id, стабильно (один и
+// тот же автомат всегда получает один и тот же цвет между заходами).
+function slotGradientFor(id){
+  if(SLOT_MACHINE_STYLES[id]) return SLOT_MACHINE_STYLES[id];
+  // FNV-1a — простой, но с хорошим разбросом хеш (обычная линейная сумма
+  // давала почти одинаковый цвет для соседних id вида slot11/slot12).
+  let hash = 2166136261;
+  for(let i=0;i<id.length;i++){
+    hash ^= id.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `linear-gradient(145deg, hsl(${hue},58%,26%), hsl(${hue},70%,8%))`;
+}
 let slotMachinesCache = [];
 let slotPayoutsCache = [];
 let slotPairMultiplierCache = 0.65;
@@ -1027,7 +1042,7 @@ async function enterSlotsPicker(){
     return;
   }
   grid.innerHTML = slotMachinesCache.map(m => `
-    <div class="slot-machine-card" data-machine="${m.id}" style="--slot-grad:${SLOT_MACHINE_STYLES[m.id] || SLOT_MACHINE_STYLES.fruits};">
+    <div class="slot-machine-card" data-machine="${m.id}" style="--slot-grad:${slotGradientFor(m.id)};">
       <div class="symbols-row">${m.symbols.slice(0,3).join(' ')}</div>
       <h4>${m.name}</h4>
       <span class="rtp-badge">отдача ~91%</span>
