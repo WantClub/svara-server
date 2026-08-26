@@ -86,7 +86,8 @@ function createRoom(code, betUnit, hostUsername, maxSeats) {
     phase: 'lobby', // lobby | betting | handEnd
     pot: 0, currentHighBet: 0, turnIndex: null, dealerIndex: 0,
     handNumber: 0, lastWinner: null,
-    log: [`Стол создан игроком ${hostUsername}.`]
+    log: [`Стол создан игроком ${hostUsername}.`],
+    chat: []
   };
 }
 
@@ -311,6 +312,7 @@ function redactForViewer(room, viewerUsername, viewerIsAdmin) {
     seats, phase: room.phase, pot: room.pot, currentHighBet: room.currentHighBet,
     turnIndex: room.turnIndex, handNumber: room.handNumber,
     lastWinner: room.lastWinner, lastPotSize: room.lastPotSize || 0, log: room.log.slice(-16),
+    chat: (room.chat || []).slice(-50),
     turnDeadline: room.turnDeadline || null
   };
 }
@@ -328,7 +330,7 @@ function fullStateForAdmin(room) {
     code: room.code, betUnit: room.betUnit, hostName: room.hostName, maxSeats: room.maxSeats || room.seats.length,
     seats, phase: room.phase, pot: room.pot, currentHighBet: room.currentHighBet,
     turnIndex: room.turnIndex, handNumber: room.handNumber,
-    lastWinner: room.lastWinner, log: room.log.slice(-30)
+    lastWinner: room.lastWinner, log: room.log.slice(-30), chat: (room.chat || []).slice(-50)
   };
 }
 

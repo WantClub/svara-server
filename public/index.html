@@ -292,6 +292,14 @@
   .host-panel{margin-top:14px; display:flex; gap:8px; flex-wrap:wrap;}
   .host-panel .btn{width:auto; flex:1; margin-top:0;}
   .log{margin-top:14px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:10px 14px; max-height:130px; overflow-y:auto; font-family:var(--font-mono); font-size:11.5px; color:var(--muted); line-height:1.7; width:100%; max-width:960px;}
+  .chat-panel{margin-top:14px; background:var(--panel); border:1px solid var(--panel-line); border-radius:10px; padding:12px 14px; width:100%; max-width:960px;}
+  .chat-title{font-family:var(--font-display); font-size:13px; color:var(--gold); margin-bottom:8px;}
+  .chat-messages{max-height:150px; overflow-y:auto; font-size:12.5px; line-height:1.6; margin-bottom:8px;}
+  .chat-messages .msg{margin-bottom:3px; word-break:break-word;}
+  .chat-messages .msg .u{color:var(--gold); font-weight:700;}
+  .chat-input-row{display:flex; gap:8px;}
+  .chat-input-row input{flex:1; background:var(--surface); border:1px solid var(--panel-line); border-radius:7px; padding:9px 12px; color:var(--ivory); font-size:13px;}
+  .chat-input-row button{flex-shrink:0;}
   .showdown-banner{background:rgba(198,161,91,0.1); border:1px solid var(--gold); border-radius:10px; padding:14px 16px; margin-bottom:12px; width:100%; max-width:960px;}
   .showdown-title{font-family:var(--font-display); font-size:14px; color:var(--gold); letter-spacing:0.03em; margin-bottom:8px;}
   .winner-row{display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:4px 0;}
@@ -556,6 +564,14 @@
     <div class="turn-timer" id="turnTimerBadge" style="display:none;"></div>
     <div id="actionZone"></div>
   </div>
+  <div class="chat-panel" id="chatPanel" style="display:none;">
+    <div class="chat-title">Чат стола</div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" maxlength="300" placeholder="Написать за столом…">
+      <button class="btn small" id="chatSendBtn">Отпр.</button>
+    </div>
+  </div>
   <div class="log" id="logBox" style="display:none;"></div>
 </div>
 
@@ -573,7 +589,7 @@ let socket = null;
 let roomCode = "";
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','slotsView','tableTop','feltEl','myHandBar','logBox','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','slotsView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -1275,7 +1291,7 @@ function flyChipToPot(seatEl, potEl, feltEl){
 }
 
 function enterTable(){
-  showOnly(['tableTop','feltEl','myHandBar','logBox']);
+  showOnly(['tableTop','feltEl','myHandBar','logBox','chatPanel']);
   document.getElementById('roomCodeTag').textContent = roomCode;
   lastBetSnapshot = null;
   lastHandNumberForAnim = null;
@@ -1290,6 +1306,18 @@ document.getElementById('leaveBtn').addEventListener('click', ()=>{
 });
 
 function act(type, amount){ socket.emit('table:action', {type, amount}, (res)=>{ if(res && !res.ok) alert(res.error); }); }
+
+function sendChatMessage(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  socket.emit('table:chat', text, (res)=>{ if(res && !res.ok) alert(res.error); });
+  input.value = '';
+}
+document.getElementById('chatSendBtn').addEventListener('click', sendChatMessage);
+document.getElementById('chatInput').addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter'){ e.preventDefault(); sendChatMessage(); }
+});
 
 function render(state){
   document.getElementById('potAmt').textContent = state.pot;
@@ -1521,6 +1549,18 @@ function render(state){
   const logBox = document.getElementById('logBox');
   logBox.innerHTML = state.log.map(l => `<div>${l}</div>`).join('');
   logBox.scrollTop = logBox.scrollHeight;
+
+  if(state.chat){
+    const chatBox = document.getElementById('chatMessages');
+    chatBox.innerHTML = state.chat.map(m => `<div class="msg"><span class="u">${escapeHtml(m.username)}:</span> ${escapeHtml(m.text)}</div>`).join('');
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
 }
 
 /* Локальная копия оценки комбинации — только для подписи "Пара/Флеш/Тройка" под своими картами. */

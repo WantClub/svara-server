@@ -675,6 +675,21 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('table:chat', (text, cb) => {
+    const meta = socketMeta.get(socket.id);
+    const room = meta && rooms.get(meta.roomCode);
+    if (!room) return cb && cb({ ok: false, error: 'Вы не за столом.' });
+    const idx = room.seats.findIndex(s => s && s.username === socket.username);
+    if (idx < 0) return cb && cb({ ok: false, error: 'Вы не за столом.' });
+    const clean = String(text || '').trim().slice(0, 300);
+    if (!clean) return cb && cb({ ok: false, error: 'Пустое сообщение.' });
+    if (!room.chat) room.chat = [];
+    room.chat.push({ username: socket.username, text: clean, ts: Date.now() });
+    if (room.chat.length > 100) room.chat = room.chat.slice(-100);
+    broadcastRoom(room.code);
+    if (cb) cb({ ok: true });
+  });
+
   socket.on('table:leave', (cb) => {
     const meta = socketMeta.get(socket.id);
     const room = meta && rooms.get(meta.roomCode);
