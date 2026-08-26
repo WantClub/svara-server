@@ -202,8 +202,14 @@ function actRaise(room, seatIdx, raiseAmount) {
   s.chips -= pay; s.betThisRound += pay; room.pot += pay;
   room.currentHighBet = s.betThisRound;
   s.hasActed = true;
+  // Игроков, у которых уже 0 фишек (полностью ва-банк), НЕ просим действовать
+  // заново при каждом новом подъёме — им физически нечем ходить, что бы ни
+  // случилось дальше. Раньше сброс "уже походил" происходил для всех подряд,
+  // и это заставляло игроков без фишек бесконечно "ходить по кругу".
   seatedIndices(room).forEach(i => {
-    if (i !== seatIdx && room.seats[i].inHand && !room.seats[i].folded) room.seats[i].hasActed = false;
+    if (i !== seatIdx && room.seats[i].inHand && !room.seats[i].folded && room.seats[i].chips > 0) {
+      room.seats[i].hasActed = false;
+    }
   });
   room.log.push(`${s.username}: поднимает до ${room.currentHighBet}.`);
   resolveIfDone(room);
