@@ -201,6 +201,7 @@ function actRaise(room, seatIdx, raiseAmount) {
   if (room.phase !== 'betting') return { ok: false, error: 'Сейчас не время торговли.' };
   if (room.turnIndex !== seatIdx) return { ok: false, error: 'Сейчас не ваш ход.' };
   const s = room.seats[seatIdx];
+  const oldHighBet = room.currentHighBet;
   // Игрок может поднять на любую сумму от своего желания — минимум один анте (betUnit).
   const parsedAmount = parseInt(raiseAmount);
   const raiseBy = Number.isFinite(parsedAmount) && parsedAmount > 0 ? Math.max(parsedAmount, room.betUnit) : room.betUnit;
@@ -217,16 +218,24 @@ function actRaise(room, seatIdx, raiseAmount) {
   // между игроками бесконечно.
   room.currentHighBet = Math.max(room.currentHighBet, s.betThisRound);
   s.hasActed = true;
-  // Игроков, у которых уже 0 фишек (полностью ва-банк), НЕ просим действовать
-  // заново при каждом новом подъёме — им физически нечем ходить, что бы ни
-  // случилось дальше. Раньше сброс "уже походил" происходил для всех подряд,
-  // и это заставляло игроков без фишек бесконечно "ходить по кругу".
-  seatedIndices(room).forEach(i => {
-    if (i !== seatIdx && room.seats[i].inHand && !room.seats[i].folded && room.seats[i].chips > 0) {
-      room.seats[i].hasActed = false;
-    }
-  });
-  room.log.push(`${s.username}: поднимает до ${room.currentHighBet}.`);
+  // КЛЮЧЕВОЙ МОМЕНТ: если у игрока не хватило фишек и его "подъём" по факту
+  // НЕ превысил уже существующую ставку (просто ва-банк вровень или ниже) —
+  // это НЕ настоящий подъём, а обычный call. Раньше в этом случае всё равно
+  // сбрасывалась отметка "уже походил" у всех остальных — из-за этого
+  // игрока, у которого не хватало фишек на реальный подъём, каждый его
+  // клик "Поднять" заново заставлял всех отвечать, хотя по факту ничего не
+  // менялось — отсюда и бесконечное хождение по кругу с одинаковой ставкой.
+  const isGenuineRaise = room.currentHighBet > oldHighBet;
+  if (isGenuineRaise) {
+    seatedIndices(room).forEach(i => {
+      if (i !== seatIdx && room.seats[i].inHand && !room.seats[i].folded && room.seats[i].chips > 0) {
+        room.seats[i].hasActed = false;
+      }
+    });
+    room.log.push(`${s.username}: поднимает до ${room.currentHighBet}.`);
+  } else {
+    room.log.push(`${s.username}: идёт ва-банк (${s.betThisRound}) — фишек на реальный подъём не хватило.`);
+  }
   resolveIfDone(room);
   return { ok: true };
 }
