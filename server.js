@@ -480,7 +480,18 @@ function tryAutoDeal(room) {
   const seated = game.seatedIndices(room).filter(i => room.seats[i].chips > 0);
   if (seated.length >= 2) {
     const result = game.dealHand(room);
-    if (result.ok) scheduleTurnTimer(room);
+    if (result.ok) {
+      // Редкий краевой случай: если у всех сразу не хватило фишек даже на
+      // полноценную торговлю (все ушли в ва-банк прямо на анте), раздача
+      // может завершиться сразу же внутри dealHand — тогда нужно записать
+      // историю и запустить автостарт следующей раздачи, а не таймер хода.
+      if (room.phase === 'handEnd') {
+        logHandHistoryIfNeeded(room);
+        scheduleAutoNextHand(room);
+      } else {
+        scheduleTurnTimer(room);
+      }
+    }
   }
 }
 

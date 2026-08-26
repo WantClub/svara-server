@@ -134,6 +134,12 @@ function dealHand(room) {
   room.dealerIndex = seated[room.handNumber % seated.length];
   room.turnIndex = nextActiveIndex(room, room.dealerIndex);
   room.log.push(`— Раздача №${room.handNumber}. Анте ${room.betUnit} с каждого, банк ${room.pot}. —`);
+  // Редкий, но реальный краевой случай: если у ВСЕХ участников фишек хватило
+  // ровно на анте (все сразу ушли в ва-банк с нуля) — ходить некому вообще
+  // (turnIndex будет null), и без этой проверки раздача зависла бы намертво
+  // сразу после раздачи карт. Сразу проверяем — если ходить действительно
+  // некому, переходим прямо к вскрытию карт.
+  resolveIfDone(room);
   return { ok: true };
 }
 
