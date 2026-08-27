@@ -51,6 +51,10 @@
     width:100%; background:var(--surface); border:1px solid var(--panel-line); border-radius:7px;
     padding:10px 12px; color:var(--ivory); font-family:var(--font-mono); font-size:14px;
   }
+  select{
+    width:100%; background:var(--surface); border:1px solid var(--panel-line); border-radius:7px;
+    padding:10px 12px; color:var(--ivory); font-family:var(--font-mono); font-size:14px;
+  }
   input:focus{outline:none; border-color:var(--gold-dim);}
   .btn{width:100%; margin-top:16px; background:var(--gold); color:#231607; border:none; border-radius:7px; padding:12px; font-family:var(--font-display); font-weight:700; font-size:14px; letter-spacing:0.06em; cursor:pointer;}
   .btn:hover{background:#D9B879;}
@@ -438,6 +442,33 @@
   @keyframes spinBtnGlow{ 0%,100%{ box-shadow:0 0 0 rgba(198,161,91,0);} 50%{ box-shadow:0 0 22px rgba(198,161,91,0.55);} }
   .paytable{font-size:11.5px; color:var(--muted); line-height:1.8; margin-top:10px;}
   .paytable b{color:var(--gold); font-family:var(--font-mono);}
+
+  /* ===== Mines ===== */
+  .mines-status-row{display:flex; justify-content:space-between; font-size:13px; margin-bottom:12px; flex-wrap:wrap; gap:8px;}
+  .mines-grid{display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; max-width:400px; margin:0 auto;}
+  .mines-grid.g-3{grid-template-columns:repeat(3, 1fr);}
+  .mines-grid.g-4{grid-template-columns:repeat(4, 1fr);}
+  .mine-tile{
+    aspect-ratio:1; border-radius:10px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+    font-size:22px; background:linear-gradient(160deg, #2a2416, #14110a); border:2px solid var(--gold-dim);
+    transition: transform 0.12s ease, background 0.2s ease; user-select:none;
+  }
+  .mine-tile:hover{ transform:translateY(-2px); }
+  .mine-tile.revealed-safe{ background:linear-gradient(160deg, #1a4a2a, #0a1f10); cursor:default; animation:tilePop 0.25s ease; }
+  .mine-tile.revealed-mine{ background:linear-gradient(160deg, #5e1414, #200505); cursor:default; }
+  .mine-tile.disabled{ pointer-events:none; opacity:0.55; }
+  @keyframes tilePop{ 0%{transform:scale(0.6);} 60%{transform:scale(1.15);} 100%{transform:scale(1);} }
+
+  /* ===== Crash ===== */
+  .crash-display{
+    position:relative; height:180px; border-radius:14px; margin-bottom:14px; overflow:hidden;
+    background: radial-gradient(ellipse at 50% 100%, #241a05 0%, #050505 75%);
+    border:2px solid var(--gold-dim);
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+  }
+  .crash-multiplier{font-family:var(--font-display); font-size:44px; font-weight:800; color:var(--gold); text-shadow:0 0 20px rgba(198,161,91,0.5);}
+  .crash-multiplier.crashed{color:var(--red);}
+  .crash-plane{position:absolute; font-size:28px; left:16px; bottom:16px; transition:transform 0.1s linear;}
 </style>
 </head>
 <body>
@@ -466,6 +497,7 @@
     </div>
     <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> Лобби</div>
     <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> Слоты</div>
+    <div class="drawer-item" id="drwFastGames"><span class="ic">⚡</span> Быстрые игры</div>
     <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> Спорт</div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
     <div class="drawer-item" id="drwInstallApp" style="display:none;"><span class="ic">📲</span> Установить приложение</div>
@@ -560,6 +592,97 @@
     <div class="card-panel">
       <h3>Последние спины</h3>
       <div id="slotHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- FAST GAMES: выбор игры -->
+  <div id="fastGamesPickerView" class="wide" style="display:none;">
+    <div class="card-panel">
+      <h3>Быстрые игры</h3>
+      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача ~92% — как и у слотов.</p>
+      <div class="slot-machines-grid">
+        <div class="slot-machine-card" id="pickMinesCard" style="--slot-grad: linear-gradient(145deg, #1a3a1a, #041004);">
+          <div class="symbols-row">💣 💎 💎</div>
+          <h4>Mines</h4>
+          <p style="color:rgba(255,255,255,0.75); font-size:12.5px; margin:4px 0 0;">Открывай безопасные клетки, избегай мин. Забирай выигрыш в любой момент.</p>
+          <span class="rtp-badge">отдача ~92%</span>
+          <div class="play-hint">▶ Играть</div>
+        </div>
+        <div class="slot-machine-card" id="pickCrashCard" style="--slot-grad: linear-gradient(145deg, #3a1a1a, #100404);">
+          <div class="symbols-row">🚀 📈 💥</div>
+          <h4>Crash</h4>
+          <p style="color:rgba(255,255,255,0.75); font-size:12.5px; margin:4px 0 0;">Множитель растёт — успей забрать до краха.</p>
+          <span class="rtp-badge">отдача ~92%</span>
+          <div class="play-hint">▶ Играть</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MINES -->
+  <div id="minesView" class="limited" style="display:none;">
+    <div class="card-panel">
+      <div class="linklike" id="backToFastGamesFromMines" style="margin-bottom:10px;">← выбрать другую игру</div>
+      <h3>Mines</h3>
+      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача ~92%.</p>
+
+      <div id="minesSetup">
+        <label>Ставка</label>
+        <div class="chip-grid" id="minesChipGrid"></div>
+        <input type="number" id="minesBetInput" value="50" min="1" step="10">
+        <label style="margin-top:10px;">Размер поля</label>
+        <select id="minesGridSize">
+          <option value="9">3×3 (9 клеток)</option>
+          <option value="16">4×4 (16 клеток)</option>
+          <option value="25" selected>5×5 (25 клеток)</option>
+        </select>
+        <label style="margin-top:10px;">Количество мин</label>
+        <input type="number" id="minesCountInput" value="3" min="1" step="1">
+        <button class="btn" id="minesStartBtn" style="margin-top:14px;">Начать раунд</button>
+        <div class="err" id="minesSetupErr"></div>
+      </div>
+
+      <div id="minesGameArea" style="display:none;">
+        <div class="mines-status-row">
+          <div>Текущий множитель: <b id="minesCurrentMult" style="color:var(--gold);">×1.00</b></div>
+          <div>Возможный выигрыш: <b id="minesCurrentPayout" style="color:var(--green);">0</b></div>
+        </div>
+        <div class="mines-grid" id="minesGrid"></div>
+        <button class="btn slot-spin-btn" id="minesCashoutBtn" style="margin-top:14px;">💰 Забрать выигрыш</button>
+        <div class="slot-result" id="minesResult"></div>
+      </div>
+    </div>
+    <div class="card-panel">
+      <h3>Последние раунды</h3>
+      <div id="minesHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- CRASH -->
+  <div id="crashView" class="limited" style="display:none;">
+    <div class="card-panel">
+      <div class="linklike" id="backToFastGamesFromCrash" style="margin-bottom:10px;">← выбрать другую игру</div>
+      <h3>Crash</h3>
+      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача ~92%.</p>
+
+      <div class="crash-display" id="crashDisplay">
+        <div class="crash-multiplier" id="crashMultiplierText">×1.00</div>
+        <div class="crash-plane" id="crashPlane">🚀</div>
+      </div>
+      <div class="slot-result" id="crashResult"></div>
+
+      <div id="crashSetup">
+        <label>Ставка</label>
+        <div class="chip-grid" id="crashChipGrid"></div>
+        <input type="number" id="crashBetInput" value="50" min="1" step="10">
+        <button class="btn slot-spin-btn" id="crashStartBtn" style="margin-top:14px;">🚀 Запустить</button>
+      </div>
+      <button class="btn" id="crashCashoutBtn" style="margin-top:14px; display:none; background:var(--green); border-color:var(--green);">💰 Забрать сейчас</button>
+      <div class="err" id="crashSetupErr"></div>
+    </div>
+    <div class="card-panel">
+      <h3>Последние раунды</h3>
+      <div id="crashHistoryList"></div>
     </div>
   </div>
 
@@ -683,7 +806,7 @@ let socket = null;
 let roomCode = "";
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','fastGamesPickerView','minesView','crashView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -1255,6 +1378,244 @@ async function refreshSlotHistory(){
     const net = s.payout - s.bet;
     const badge = net > 0 ? `<span class="pill active">+${net}</span>` : net === 0 ? `<span class="pill" style="background:rgba(198,161,91,0.1); color:var(--muted);">0</span>` : `<span class="pill banned">${net}</span>`;
     return `<div class="open-room-row"><div>${s.r1}${s.r2}${s.r3}<div class="meta">ставка ${s.bet}</div></div>${badge}</div>`;
+  }).join('');
+}
+
+/* ===================== БЫСТРЫЕ ИГРЫ: общий пикер ===================== */
+const FAST_BET_CHIPS = [10, 25, 50, 100, 250, 500];
+
+document.getElementById('drwFastGames').addEventListener('click', ()=>{ closeDrawer(); enterFastGamesPicker(); });
+function enterFastGamesPicker(){
+  stopCrashAnimation();
+  showOnly(['topbar','fastGamesPickerView']);
+  renderTopbar();
+}
+document.getElementById('pickMinesCard').addEventListener('click', enterMines);
+document.getElementById('pickCrashCard').addEventListener('click', enterCrash);
+document.getElementById('backToFastGamesFromMines').addEventListener('click', enterFastGamesPicker);
+document.getElementById('backToFastGamesFromCrash').addEventListener('click', enterFastGamesPicker);
+
+/* ===================== MINES ===================== */
+let minesInProgress = false;
+let minesRevealedSet = new Set();
+
+async function enterMines(){
+  showOnly(['topbar','minesView']);
+  renderTopbar();
+  document.getElementById('minesSetup').style.display = '';
+  document.getElementById('minesGameArea').style.display = 'none';
+  document.getElementById('minesResult').textContent = '';
+  document.getElementById('minesSetupErr').textContent = '';
+  const grid = document.getElementById('minesChipGrid');
+  grid.innerHTML = FAST_BET_CHIPS.map(v => `<div class="chip-btn" data-chipfor="minesBetInput" data-val="${v}">${v}</div>`).join('');
+  wireChipGrid('minesBetInput');
+  await refreshMinesHistory();
+}
+
+document.getElementById('minesStartBtn').addEventListener('click', async ()=>{
+  const bet = parseInt(document.getElementById('minesBetInput').value) || 0;
+  const gridSize = parseInt(document.getElementById('minesGridSize').value);
+  const minesCount = parseInt(document.getElementById('minesCountInput').value) || 0;
+  const errEl = document.getElementById('minesSetupErr');
+  errEl.textContent = '';
+  if(bet <= 0){ errEl.textContent = 'Введите ставку.'; return; }
+  if(bet > me.chips){ errEl.textContent = `Недостаточно фишек. На балансе: ${me.chips}.`; return; }
+  if(!Number.isInteger(minesCount) || minesCount < 1 || minesCount >= gridSize){ errEl.textContent = 'Некорректное число мин для этого поля.'; return; }
+
+  let res;
+  try{ res = await api('/api/mines/start', 'POST', {bet, gridSize, minesCount}); }
+  catch(e){ errEl.textContent = e.message; return; }
+
+  me.chips = res.chips;
+  minesRevealedSet = new Set();
+  buildMinesGrid(gridSize);
+  document.getElementById('minesSetup').style.display = 'none';
+  document.getElementById('minesGameArea').style.display = '';
+  document.getElementById('minesCurrentMult').textContent = '×1.00';
+  document.getElementById('minesCurrentPayout').textContent = '0';
+  document.getElementById('minesResult').textContent = '';
+  document.getElementById('minesResult').className = 'slot-result';
+  document.getElementById('minesCashoutBtn').style.display = '';
+});
+
+function buildMinesGrid(gridSize){
+  const el = document.getElementById('minesGrid');
+  el.className = 'mines-grid ' + (gridSize===9 ? 'g-3' : gridSize===16 ? 'g-4' : '');
+  el.innerHTML = '';
+  for(let i=0;i<gridSize;i++){
+    const tile = document.createElement('div');
+    tile.className = 'mine-tile';
+    tile.dataset.idx = i;
+    tile.addEventListener('click', ()=> onMinesTileClick(i));
+    el.appendChild(tile);
+  }
+}
+
+async function onMinesTileClick(idx){
+  if(minesInProgress || minesRevealedSet.has(idx)) return;
+  minesInProgress = true;
+  let res;
+  try{ res = await api('/api/mines/reveal', 'POST', {tileIndex: idx}); }
+  catch(e){ document.getElementById('minesResult').textContent = e.message; minesInProgress = false; return; }
+
+  const tileEl = document.querySelector(`.mine-tile[data-idx="${idx}"]`);
+  me.chips = res.chips;
+
+  if(res.hitMine){
+    tileEl.classList.add('revealed-mine'); tileEl.textContent = '💣';
+    (res.mines||[]).forEach(mIdx=>{
+      if(mIdx === idx) return;
+      const mEl = document.querySelector(`.mine-tile[data-idx="${mIdx}"]`);
+      if(mEl){ mEl.classList.add('revealed-mine'); mEl.textContent = '💣'; }
+    });
+    document.querySelectorAll('.mine-tile').forEach(t=>t.classList.add('disabled'));
+    document.getElementById('minesResult').textContent = 'Мина! Раунд проигран.';
+    document.getElementById('minesResult').className = 'slot-result lose';
+    document.getElementById('minesCashoutBtn').style.display = 'none';
+    await refreshMinesHistory();
+  } else {
+    minesRevealedSet.add(idx);
+    tileEl.classList.add('revealed-safe'); tileEl.textContent = '💎';
+    document.getElementById('minesCurrentMult').textContent = '×' + res.multiplier.toFixed(2);
+    document.getElementById('minesCurrentPayout').textContent = res.payout;
+    if(res.allSafeOpened){
+      document.querySelectorAll('.mine-tile').forEach(t=>t.classList.add('disabled'));
+      document.getElementById('minesResult').textContent = `Все безопасные клетки открыты! Выигрыш ${res.payout} фишек зачислен.`;
+      document.getElementById('minesResult').className = 'slot-result win';
+      document.getElementById('minesCashoutBtn').style.display = 'none';
+      await refreshMinesHistory();
+    }
+  }
+  minesInProgress = false;
+}
+
+document.getElementById('minesCashoutBtn').addEventListener('click', async ()=>{
+  if(minesInProgress) return;
+  minesInProgress = true;
+  let res;
+  try{ res = await api('/api/mines/cashout', 'POST'); }
+  catch(e){ document.getElementById('minesResult').textContent = e.message; minesInProgress = false; return; }
+  me.chips = res.chips;
+  document.querySelectorAll('.mine-tile').forEach(t=>t.classList.add('disabled'));
+  document.getElementById('minesResult').textContent = `Забрано ${res.payout} фишек (×${res.multiplier.toFixed(2)})`;
+  document.getElementById('minesResult').className = 'slot-result win';
+  document.getElementById('minesCashoutBtn').style.display = 'none';
+  await refreshMinesHistory();
+  minesInProgress = false;
+});
+
+async function refreshMinesHistory(){
+  const el = document.getElementById('minesHistoryList');
+  let data;
+  try{ data = await api('/api/mines/myrounds', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.rounds.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Раундов пока нет.</div>'; return; }
+  el.innerHTML = data.rounds.map(r=>{
+    const net = r.payout - r.bet;
+    const badge = net > 0 ? `<span class="pill active">+${net}</span>` : `<span class="pill banned">${net}</span>`;
+    const label = r.hit_mine ? `💣 подрыв на ${r.revealed_count}-й клетке` : `💎 ${r.revealed_count} клеток открыто`;
+    return `<div class="open-room-row"><div>${label}<div class="meta">ставка ${r.bet}</div></div>${badge}</div>`;
+  }).join('');
+}
+
+/* ===================== CRASH (Авиатор) ===================== */
+let crashInProgress = false;
+let crashRoundActive = false;
+let crashStartedAt = 0;
+let crashGrowthRate = 0.18;
+let crashAnimFrame = null;
+
+function stopCrashAnimation(){
+  if(crashAnimFrame){ cancelAnimationFrame(crashAnimFrame); crashAnimFrame = null; }
+}
+
+async function enterCrash(){
+  showOnly(['topbar','crashView']);
+  renderTopbar();
+  stopCrashAnimation();
+  crashRoundActive = false;
+  document.getElementById('crashSetup').style.display = '';
+  document.getElementById('crashCashoutBtn').style.display = 'none';
+  document.getElementById('crashMultiplierText').textContent = '×1.00';
+  document.getElementById('crashMultiplierText').className = 'crash-multiplier';
+  document.getElementById('crashSetupErr').textContent = '';
+  document.getElementById('crashResult').textContent = '';
+  document.getElementById('crashPlane').style.transform = 'translate(0,0)';
+  const grid = document.getElementById('crashChipGrid');
+  grid.innerHTML = FAST_BET_CHIPS.map(v => `<div class="chip-btn" data-chipfor="crashBetInput" data-val="${v}">${v}</div>`).join('');
+  wireChipGrid('crashBetInput');
+  await refreshCrashHistory();
+}
+
+document.getElementById('crashStartBtn').addEventListener('click', async ()=>{
+  const bet = parseInt(document.getElementById('crashBetInput').value) || 0;
+  const errEl = document.getElementById('crashSetupErr');
+  errEl.textContent = '';
+  if(bet <= 0){ errEl.textContent = 'Введите ставку.'; return; }
+  if(bet > me.chips){ errEl.textContent = `Недостаточно фишек. На балансе: ${me.chips}.`; return; }
+
+  let res;
+  try{ res = await api('/api/crash/start', 'POST', {bet}); }
+  catch(e){ errEl.textContent = e.message; return; }
+
+  me.chips = res.chips;
+  crashGrowthRate = res.growthRate;
+  crashStartedAt = res.startedAt;
+  crashRoundActive = true;
+  document.getElementById('crashSetup').style.display = 'none';
+  document.getElementById('crashCashoutBtn').style.display = '';
+  document.getElementById('crashResult').textContent = '';
+  document.getElementById('crashMultiplierText').className = 'crash-multiplier';
+  document.getElementById('crashPlane').style.transform = 'translate(0,0)';
+  animateCrash();
+});
+
+function animateCrash(){
+  if(!crashRoundActive) return;
+  const elapsed = (Date.now() - crashStartedAt) / 1000;
+  const mult = Math.exp(elapsed * crashGrowthRate);
+  document.getElementById('crashMultiplierText').textContent = '×' + mult.toFixed(2);
+  const progress = Math.min(elapsed / 10, 1);
+  document.getElementById('crashPlane').style.transform = `translate(${progress*220}px, ${-progress*90}px)`;
+  crashAnimFrame = requestAnimationFrame(animateCrash);
+}
+
+document.getElementById('crashCashoutBtn').addEventListener('click', async ()=>{
+  if(!crashRoundActive || crashInProgress) return;
+  crashInProgress = true;
+  let res;
+  try{ res = await api('/api/crash/cashout', 'POST'); }
+  catch(e){ document.getElementById('crashResult').textContent = e.message; crashInProgress = false; return; }
+
+  crashRoundActive = false;
+  stopCrashAnimation();
+  me.chips = res.chips;
+  document.getElementById('crashCashoutBtn').style.display = 'none';
+  document.getElementById('crashSetup').style.display = '';
+
+  if(res.crashed){
+    document.getElementById('crashMultiplierText').textContent = '×' + res.crashPoint.toFixed(2);
+    document.getElementById('crashMultiplierText').className = 'crash-multiplier crashed';
+    document.getElementById('crashResult').textContent = `Крах на ×${res.crashPoint.toFixed(2)} — вы не успели забрать.`;
+    document.getElementById('crashResult').className = 'slot-result lose';
+  } else {
+    document.getElementById('crashMultiplierText').textContent = '×' + res.multiplier.toFixed(2);
+    document.getElementById('crashResult').textContent = `Забрано ${res.payout} фишек (×${res.multiplier.toFixed(2)})`;
+    document.getElementById('crashResult').className = 'slot-result win';
+  }
+  await refreshCrashHistory();
+  crashInProgress = false;
+});
+
+async function refreshCrashHistory(){
+  const el = document.getElementById('crashHistoryList');
+  let data;
+  try{ data = await api('/api/crash/myrounds', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.rounds.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Раундов пока нет.</div>'; return; }
+  el.innerHTML = data.rounds.map(r=>{
+    const net = r.payout - r.bet;
+    const badge = net > 0 ? `<span class="pill active">+${net}</span>` : `<span class="pill banned">${net}</span>`;
+    const label = r.cashed_out_at ? `забрано ×${r.cashed_out_at.toFixed(2)}` : `крах ×${r.crash_point.toFixed(2)}`;
+    return `<div class="open-room-row"><div>${label}<div class="meta">ставка ${r.bet}</div></div>${badge}</div>`;
   }).join('');
 }
 

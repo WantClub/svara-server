@@ -108,6 +108,31 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `);
 
+// История раундов Mines и Crash — по аналогии со слотами, для истории
+// игрока и возможности админу посмотреть статистику по клубу в целом.
+db.exec(`
+CREATE TABLE IF NOT EXISTS mines_rounds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  bet INTEGER NOT NULL,
+  grid_size INTEGER NOT NULL,
+  mines_count INTEGER NOT NULL,
+  revealed_count INTEGER NOT NULL,
+  hit_mine INTEGER NOT NULL,
+  payout INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS crash_rounds (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  bet INTEGER NOT NULL,
+  crash_point REAL NOT NULL,
+  cashed_out_at REAL,
+  payout INTEGER NOT NULL,
+  created_at INTEGER NOT NULL
+);
+`);
+
 // Миграция: какой именно слот-автомат использовался в спине (для тех, кто
 // уже играл до появления нескольких тематик).
 try {

@@ -12,6 +12,8 @@ const path = require('path');
 const db = require('./db');
 const game = require('./game');
 const slots = require('./slots');
+const mines = require('./mines');
+const crash = require('./crash');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const PORT = process.env.PORT || 3000;
@@ -354,6 +356,116 @@ app.get('/api/slots/myspins', authMiddleware, (req, res) => {
   res.json({ spins: rows });
 });
 
+// ===================== MINES =====================
+// Активные раунды храним в памяти (по одному на игрока) — как и столы
+// покера, это состояние конкретной текущей игры, а не история.
+const minesRounds = new Map(); // username -> round
+
+app.post('/api/mines/start', authMiddleware, (req, res) => {
+  const bet = parseInt(req.body?.bet);
+  const gridSize = parseInt(req.body?.gridSize);
+  const minesCount = parseInt(req.body?.minesCount);
+  if (!Number.isFinite(bet) || bet <= 0) return res.status(400).json({ error: 'Некорректная ставка.' });
+  if (!mines.validSetup(gridSize, minesCount)) return res.status(400).json({ error: 'Некорректные параметры поля.' });
+
+  const user = getUserByUsername(req.dbUser.username);
+  if (bet > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+  if (minesRounds.has(user.username)) return res.status(400).json({ error: 'У вас уже есть незавершённый раунд.' });
+
+  db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(bet, user.username);
+  const round = mines.createRound(bet, gridSize, minesCount);
+  minesRounds.set(user.username, round);
+
+  const updated = getUserByUsername(user.username);
+  res.json({ ok: true, chips: updated.chips, gridSize, minesCount });
+});
+
+app.post('/api/mines/reveal', authMiddleware, (req, res) => {
+  const round = minesRounds.get(req.dbUser.username);
+  if (!round) return res.status(400).json({ error: 'Нет активного раунда. Начните новый.' });
+  const tileIndex = parseInt(req.body?.tileIndex);
+  const result = mines.revealTile(round, tileIndex);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+
+  if (result.hitMine || result.allSafeOpened) {
+    minesRounds.delete(req.dbUser.username);
+    if (result.allSafeOpened) {
+      db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(result.payout, req.dbUser.username);
+    }
+    db.prepare('INSERT INTO mines_rounds (username, bet, grid_size, mines_count, revealed_count, hit_mine, payout, created_at) VALUES (?,?,?,?,?,?,?,?)')
+      .run(req.dbUser.username, round.bet, round.gridSize, round.minesCount, round.revealed.size, result.hitMine ? 1 : 0, result.payout, Date.now());
+  }
+  const updated = getUserByUsername(req.dbUser.username);
+  res.json({ ok: true, ...result, mines: result.hitMine ? Array.from(round.mines) : undefined, chips: updated.chips });
+});
+
+app.post('/api/mines/cashout', authMiddleware, (req, res) => {
+  const round = minesRounds.get(req.dbUser.username);
+  const result = mines.cashOut(round);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(result.payout, req.dbUser.username);
+  db.prepare('INSERT INTO mines_rounds (username, bet, grid_size, mines_count, revealed_count, hit_mine, payout, created_at) VALUES (?,?,?,?,?,0,?,?)')
+    .run(req.dbUser.username, round.bet, round.gridSize, round.minesCount, round.revealed.size, result.payout, Date.now());
+  minesRounds.delete(req.dbUser.username);
+  const updated = getUserByUsername(req.dbUser.username);
+  res.json({ ok: true, ...result, chips: updated.chips });
+});
+
+app.get('/api/mines/myrounds', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM mines_rounds WHERE username = ? COLLATE NOCASE ORDER BY id DESC LIMIT 15').all(req.dbUser.username);
+  res.json({ rounds: rows });
+});
+
+// ===================== CRASH (Авиатор) =====================
+const crashRounds = new Map(); // username -> round
+
+app.post('/api/crash/start', authMiddleware, (req, res) => {
+  const bet = parseInt(req.body?.bet);
+  if (!Number.isFinite(bet) || bet <= 0) return res.status(400).json({ error: 'Некорректная ставка.' });
+
+  const user = getUserByUsername(req.dbUser.username);
+  if (bet > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+
+  // Если старый раунд просрочен (игрок ушёл, не забрав) — записываем как
+  // проигрыш в историю (ставка уже была списана при старте) и освобождаем слот.
+  const existing = crashRounds.get(user.username);
+  if (existing && !crash.isExpired(existing)) {
+    return res.status(400).json({ error: 'У вас уже есть незавершённый раунд.' });
+  }
+  if (existing) {
+    db.prepare('INSERT INTO crash_rounds (username, bet, crash_point, cashed_out_at, payout, created_at) VALUES (?,?,?,?,0,?)')
+      .run(user.username, existing.bet, existing.crashPoint, null, Date.now());
+    crashRounds.delete(user.username);
+  }
+
+  db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(bet, user.username);
+  const round = crash.createRound(bet);
+  crashRounds.set(user.username, round);
+
+  const updated = getUserByUsername(user.username);
+  res.json({ ok: true, chips: updated.chips, growthRate: crash.GROWTH_RATE, startedAt: round.startedAt });
+});
+
+app.post('/api/crash/cashout', authMiddleware, (req, res) => {
+  const round = crashRounds.get(req.dbUser.username);
+  if (!round) return res.status(400).json({ error: 'Нет активного раунда.' });
+  const result = crash.cashOut(round);
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  if (result.payout > 0) {
+    db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(result.payout, req.dbUser.username);
+  }
+  db.prepare('INSERT INTO crash_rounds (username, bet, crash_point, cashed_out_at, payout, created_at) VALUES (?,?,?,?,?,?)')
+    .run(req.dbUser.username, round.bet, round.crashPoint, result.crashed ? null : result.multiplier, result.payout, Date.now());
+  crashRounds.delete(req.dbUser.username);
+  const updated = getUserByUsername(req.dbUser.username);
+  res.json({ ok: true, ...result, chips: updated.chips });
+});
+
+app.get('/api/crash/myrounds', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM crash_rounds WHERE username = ? COLLATE NOCASE ORDER BY id DESC LIMIT 15').all(req.dbUser.username);
+  res.json({ rounds: rows });
+});
+
 app.get('/api/admin/slots/stats', authMiddleware, adminMiddleware, (req, res) => {
   const row = db.prepare('SELECT COUNT(*) as spins, COALESCE(SUM(bet),0) as wagered, COALESCE(SUM(payout),0) as paid FROM slot_spins').get();
   res.json({ spins: row.spins, wagered: row.wagered, paid: row.paid, net: row.wagered - row.paid });
@@ -407,7 +519,23 @@ app.get('/api/admin/player/:username/stats', authMiddleware, adminMiddleware, (r
     },
     theoreticalRake,
     rakePercent: RAKE_STAT_PERCENT,
-    recentHands
+    recentHands,
+    regIp: target.reg_ip || null
+  });
+});
+
+// Проверка на мультиаккаунтинг: показывает все аккаунты, у которых IP
+// регистрации совпадает с указанным. Владелец клуба сам решает по
+// результату, честный это игрок или нет — автоматически ничего не банится.
+app.get('/api/admin/check-multiaccount', authMiddleware, adminMiddleware, (req, res) => {
+  const ip = req.query.ip;
+  if (!ip) return res.status(400).json({ error: 'Не указан IP-адрес.' });
+  const rows = db.prepare(
+    'SELECT username, chips, is_admin, banned, created_at FROM users WHERE reg_ip = ? ORDER BY created_at ASC'
+  ).all(ip);
+  res.json({
+    ip,
+    accounts: rows.map(u => ({ username: u.username, chips: u.chips, isAdmin: !!u.is_admin, banned: !!u.banned, createdAt: u.created_at }))
   });
 });
 
@@ -824,8 +952,25 @@ function cashOutAllActiveRooms() {
       }
     });
   });
+  // Незавершённые раунды Mines/Crash — ставка уже списана при старте, при
+  // аварийной остановке возвращаем её обратно в кошелёк (справедливее, чем
+  // просто потерять её из-за технической причины, а не из-за проигрыша).
+  minesRounds.forEach((round, username) => {
+    if (round && round.bet > 0) {
+      db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(round.bet, username);
+      affected++;
+    }
+  });
+  minesRounds.clear();
+  crashRounds.forEach((round, username) => {
+    if (round && round.bet > 0) {
+      db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(round.bet, username);
+      affected++;
+    }
+  });
+  crashRounds.clear();
   if (affected > 0) {
-    console.log(`Безопасное завершение: фишки возвращены в кошельки для ${affected} мест за активными столами.`);
+    console.log(`Безопасное завершение: фишки возвращены в кошельки для ${affected} мест за активными столами/раундами.`);
   }
 }
 function gracefulShutdown(signal) {
