@@ -54,6 +54,23 @@ const authLimiter = rateLimit({
 function signToken(username) {
   return jwt.sign({ username }, JWT_SECRET, { expiresIn: '30d' });
 }
+// Настройка "trust proxy" не всегда даёт правильный IP за прокси Render —
+// если хопов больше одного, req.ip может вернуть один и тот же внутренний
+// адрес хостинга для ВСЕХ запросов подряд (что и вызвало баг: проверка на
+// мультиаккаунтинг находила "всех подряд", потому что у всех был записан
+// один и тот же неверный IP). Здесь берём IP напрямую из заголовка
+// X-Forwarded-For — САМЫЙ ПЕРВЫЙ адрес в цепочке — это и есть реальный
+// клиент, независимо от того, сколько прокси-серверов стоит между ним и
+// нашим сервером.
+function getClientIp(req) {
+  const xff = req.headers['x-forwarded-for'];
+  if (xff) {
+    const first = String(xff).split(',')[0].trim();
+    if (first) return first;
+  }
+  return req.socket?.remoteAddress || req.ip || null;
+}
+
 function getUserByUsername(username) {
   return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
 }
@@ -105,7 +122,7 @@ app.post('/api/register', authLimiter, (req, res) => {
   // IP всё равно сохраняем в базу — просто не используем его, чтобы решать,
   // давать бонус или нет (пригодится, если понадобится расследовать
   // подозрительную активность вручную).
-  const regIp = req.ip || null;
+  const regIp = getClientIp(req);
   const startingChips = WELCOME_BONUS_CHIPS;
 
   db.prepare('INSERT INTO users (username, password_hash, chips, is_admin, banned, created_at, reg_ip) VALUES (?,?,?,?,?,?,?)')

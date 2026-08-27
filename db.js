@@ -108,6 +108,19 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `);
 
+// Одноразовая очистка: раньше IP определялся неверно (за прокси хостинга
+// возвращался один и тот же внутренний адрес для ВСЕХ регистраций), из-за
+// чего проверка на мультиаккаунтинг в админке ошибочно находила "всех
+// подряд". Это уже исправлено для новых регистраций, но старые записи
+// остались испорченными — стираем их один раз, чтобы больше не создавать
+// ложных совпадений. Флаг в settings не даёт этой очистке повториться
+// при следующих перезапусках (иначе стирались бы уже нормальные новые данные).
+const alreadyCleanedRow = db.prepare("SELECT value FROM settings WHERE key = 'reg_ip_cleanup_done'").get();
+if (!alreadyCleanedRow) {
+  db.exec("UPDATE users SET reg_ip = NULL");
+  db.prepare("INSERT INTO settings (key, value) VALUES ('reg_ip_cleanup_done', '1') ON CONFLICT(key) DO UPDATE SET value = excluded.value").run();
+}
+
 // История раундов Mines и Crash — по аналогии со слотами, для истории
 // игрока и возможности админу посмотреть статистику по клубу в целом.
 db.exec(`
