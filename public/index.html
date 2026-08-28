@@ -1841,7 +1841,8 @@ function handleAdminAction(act, uname){
   }
   if(act === 'add' || act === 'sub'){
     showModal(`
-      <h4>${act==='add'?'Пополнить':'Списать'} фишки: ${uname}</h4>
+      <h4>${act==='add'?'Пополнить':'Списать'} купленные фишки: ${uname}</h4>
+      <p class="hint">Это всегда купленный кошелёк (💳) — то, что реально оплачено. Бонусные фишки (🎁) этой кнопкой не трогаются.</p>
       <label>Сумма</label><input type="number" id="mAmt" value="100" min="1" step="10">
       <div class="err" id="mAmtErr"></div>
       <button class="btn" id="mAmtConfirm">Подтвердить</button>
@@ -1897,7 +1898,8 @@ async function showPlayerStatsModal(uname){
     <p class="hint">Наблюдательная сводка для владельца клуба. Это собственный результат игрока внутри фишковой экономики клуба, а не доход клуба или его владельца.</p>
 
     <div class="stat-row" style="margin-top:10px;">
-      <div class="stat-box"><div class="n">${data.currentChips}</div><div class="l">баланс сейчас</div></div>
+      <div class="stat-box"><div class="n">🎁 ${data.currentChipsBonus}</div><div class="l">бонусный баланс</div></div>
+      <div class="stat-box"><div class="n">💳 ${data.currentChipsReal}</div><div class="l">купленный баланс</div></div>
       <div class="stat-box"><div class="n">${h.played}</div><div class="l">раздач сыграно</div></div>
       <div class="stat-box"><div class="n">${h.won}</div><div class="l">выиграно</div></div>
       <div class="stat-box"><div class="n">${h.lost}</div><div class="l">проиграно</div></div>
@@ -1940,7 +1942,7 @@ async function showPlayerStatsModal(uname){
             ${res.accounts.map(a => `
               <div class="stats-hist-row">
                 <div>${a.username}${a.username===data.username?' <span style="color:var(--gold);">(этот игрок)</span>':''} ${a.banned?'<span class="pill banned">бан</span>':''}</div>
-                <div class="meta">${a.chips} фишек · регистрация ${new Date(a.createdAt).toLocaleDateString('ru-RU')}</div>
+                <div class="meta">🎁 ${a.chipsBonus} · 💳 ${a.chipsReal} · регистрация ${new Date(a.createdAt).toLocaleDateString('ru-RU')}</div>
               </div>
             `).join('')}
           `;
