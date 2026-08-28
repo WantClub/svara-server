@@ -510,6 +510,7 @@
     <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> Слоты</div>
     <div class="drawer-item" id="drwFastGames"><span class="ic">⚡</span> Быстрые игры</div>
     <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> Спорт</div>
+    <div class="drawer-item" id="drwTutorial"><span class="ic">🎓</span> Обучение</div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
     <div class="drawer-item" id="drwInstallApp" style="display:none;"><span class="ic">📲</span> Установить приложение</div>
     <div class="drawer-item" id="drwAdmin" style="display:none;"><span class="ic">⚙️</span> Админка</div>
@@ -577,6 +578,44 @@
       <input type="text" id="joinCodeInput" maxlength="6" placeholder="Код стола" style="text-transform:uppercase;">
       <button class="btn secondary" id="joinByCodeBtn">Присоединиться</button>
       <div class="err" id="dashErr"></div>
+    </div>
+  </div>
+
+  <!-- ОБУЧЕНИЕ -->
+  <div id="tutorialView" class="wide" style="display:none;">
+    <div class="card-panel">
+      <h3>🃏 Как играть в Свару</h3>
+      <p class="hint">Каждому игроку раздаётся по 3 карты. По кругу все делают ставки — сравнивают текущую ставку, поднимают её, либо пасуют. Когда все, кто остался в игре, сравняли ставки — карты открываются, и банк забирает тот, у кого рука сильнее.</p>
+      <p class="hint"><b style="color:var(--gold);">Как считаются очки:</b> если у вас 2 или 3 карты одной масти — их очки складываются (валет/дама/король = 10, туз = 11, остальные — по номиналу). Если все три карты разных мастей — считается только одна, самая старшая из них.</p>
+      <p class="hint"><b style="color:var(--gold);">Тройка тузов («Свара!»)</b> — единственная особая комбинация, она побеждает всегда, независимо от очков у соперников. Любая другая тройка одинаковых карт (например, три дамы) особого статуса не имеет и сравнивается по очкам как обычно.</p>
+      <p class="hint"><b style="color:var(--gold);">Ничья:</b> если у нескольких игроков очки совпали — банк делится между ними поровну.</p>
+    </div>
+
+    <div class="card-panel">
+      <h3>💰 Бонусные и купленные фишки</h3>
+      <p class="hint"><b style="color:var(--gold);">Бонусные</b> — фишки, которые вы получаете бесплатно при регистрации. Не связаны с реальными деньгами.</p>
+      <p class="hint"><b style="color:var(--gold);">Купленные</b> — фишки, которые начисляет администратор клуба вручную после оплаты.</p>
+      <p class="hint">На главном экране нажмите на нужный кошелёк, чтобы переключить режим игры. Игроки в разных режимах никогда не пересекаются за одним столом — вы видите и можете присоединиться только к столам своего текущего режима.</p>
+    </div>
+
+    <div class="card-panel">
+      <h3>🎰 Слоты</h3>
+      <p class="hint">Выберите автомат из списка, укажите ставку и нажмите «Крутить». Если все три барабана остановятся на одинаковом символе — вы выигрываете по таблице выплат этого автомата (она показана прямо под барабанами). Любая пара одинаковых символов даёт небольшой частичный возврат ставки.</p>
+    </div>
+
+    <div class="card-panel">
+      <h3>💣 Mines</h3>
+      <p class="hint">Выберите размер поля, количество мин и ставку. Открывайте клетки по одной — каждая безопасная клетка повышает множитель выигрыша. Забрать выигрыш можно в любой момент, но если откроете клетку с миной — раздача проиграна, ставка сгорает.</p>
+    </div>
+
+    <div class="card-panel">
+      <h3>🚀 Crash</h3>
+      <p class="hint">После старта раунда множитель начинает расти. Нажмите «Забрать сейчас», чтобы зафиксировать текущий множитель и получить выигрыш. Если не успеете нажать до момента краха — ставка сгорает. Чем дольше ждёте — тем выше потенциальный выигрыш, но и риск выше.</p>
+    </div>
+
+    <div class="card-panel">
+      <h3>⚽ Ставки на спорт</h3>
+      <p class="hint">Администратор клуба публикует матчи с коэффициентами. Выберите исход, укажите ставку — если прогноз окажется верным, выигрыш зачислится автоматически после того, как администратор укажет результат матча.</p>
     </div>
   </div>
 
@@ -842,7 +881,7 @@ let socket = null;
 let roomCode = "";
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','fastGamesPickerView','minesView','crashView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','fastGamesPickerView','minesView','crashView','tutorialView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -877,6 +916,7 @@ document.getElementById('drawerBg').addEventListener('click', closeDrawer);
 document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
 document.getElementById('drwSport').addEventListener('click', ()=>{ closeDrawer(); enterSport(); });
 document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
+document.getElementById('drwTutorial').addEventListener('click', ()=>{ closeDrawer(); showOnly(['topbar','tutorialView']); renderTopbar(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
 document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer(); logout(); });
 
