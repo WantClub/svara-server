@@ -1074,9 +1074,10 @@ let shuttingDown = false;
 function cashOutAllActiveRooms() {
   let affected = 0;
   rooms.forEach(room => {
+    const wf = room.mode === 'real' ? 'chips_real' : 'chips_bonus';
     room.seats.forEach(s => {
       if (s && s.chips > 0) {
-        db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(s.chips, s.username);
+        db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ? COLLATE NOCASE`).run(s.chips, s.username);
         affected++;
       }
     });
@@ -1084,16 +1085,19 @@ function cashOutAllActiveRooms() {
   // Незавершённые раунды Mines/Crash — ставка уже списана при старте, при
   // аварийной остановке возвращаем её обратно в кошелёк (справедливее, чем
   // просто потерять её из-за технической причины, а не из-за проигрыша).
+  // Возвращаем именно в тот кошелёк, из которого была сделана ставка.
   minesRounds.forEach((round, username) => {
     if (round && round.bet > 0) {
-      db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(round.bet, username);
+      const wf = round.mode === 'real' ? 'chips_real' : 'chips_bonus';
+      db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ? COLLATE NOCASE`).run(round.bet, username);
       affected++;
     }
   });
   minesRounds.clear();
   crashRounds.forEach((round, username) => {
     if (round && round.bet > 0) {
-      db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(round.bet, username);
+      const wf = round.mode === 'real' ? 'chips_real' : 'chips_bonus';
+      db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ? COLLATE NOCASE`).run(round.bet, username);
       affected++;
     }
   });
