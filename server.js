@@ -75,7 +75,16 @@ function getUserByUsername(username) {
   return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
 }
 function toPublicUser(u) {
-  return { username: u.username, chips: u.chips, isAdmin: !!u.is_admin, banned: !!u.banned, avatar: u.avatar || null };
+  return {
+    username: u.username,
+    chipsBonus: u.chips_bonus,
+    chipsReal: u.chips_real,
+    activeMode: u.active_mode,
+    // chips — для обратной совместимости показывает баланс ТЕКУЩЕГО активного
+    // режима (то, чем игрок сейчас реально играет).
+    chips: u.active_mode === 'real' ? u.chips_real : u.chips_bonus,
+    isAdmin: !!u.is_admin, banned: !!u.banned, avatar: u.avatar || null
+  };
 }
 
 function authMiddleware(req, res, next) {
@@ -125,8 +134,10 @@ app.post('/api/register', authLimiter, (req, res) => {
   const regIp = getClientIp(req);
   const startingChips = WELCOME_BONUS_CHIPS;
 
-  db.prepare('INSERT INTO users (username, password_hash, chips, is_admin, banned, created_at, reg_ip) VALUES (?,?,?,?,?,?,?)')
-    .run(username, passwordHash, startingChips, isFirst ? 1 : 0, 0, Date.now(), regIp);
+  // Приветственный бонус всегда идёт в БОНУСНЫЙ кошелёк — он ничем не
+  // подкреплён и не должен смешиваться с реально купленными фишками.
+  db.prepare('INSERT INTO users (username, password_hash, chips, chips_bonus, chips_real, active_mode, is_admin, banned, created_at, reg_ip) VALUES (?,?,?,?,?,?,?,?,?,?)')
+    .run(username, passwordHash, startingChips, startingChips, 0, 'bonus', isFirst ? 1 : 0, 0, Date.now(), regIp);
 
   const user = getUserByUsername(username);
   res.json({ token: signToken(user.username), user: toPublicUser(user), firstAdmin: isFirst });
@@ -144,6 +155,22 @@ app.post('/api/login', authLimiter, (req, res) => {
 
 app.get('/api/me', authMiddleware, (req, res) => {
   res.json({ user: toPublicUser(req.dbUser) });
+});
+
+app.post('/api/me/mode', authMiddleware, (req, res) => {
+  const mode = req.body?.mode;
+  if (mode !== 'bonus' && mode !== 'real') return res.status(400).json({ error: 'Режим может быть только "bonus" или "real".' });
+
+  // Нельзя переключать режим, пока сидишь за покерным столом — это может
+  // запутать, из какого кошелька фактически идёт игра прямо сейчас.
+  const isSeated = Array.from(rooms.values()).some(room =>
+    room.seats.some(s => s && s.username === req.dbUser.username)
+  );
+  if (isSeated) return res.status(400).json({ error: 'Нельзя менять режим, пока вы сидите за столом. Сначала встаньте из-за стола.' });
+
+  db.prepare('UPDATE users SET active_mode = ? WHERE username = ?').run(mode, req.dbUser.username);
+  const updated = getUserByUsername(req.dbUser.username);
+  res.json({ ok: true, user: toPublicUser(updated) });
 });
 
 // ===================== КНОПКИ КАССЫ (настраиваются владельцем клуба) =====================
@@ -217,12 +244,14 @@ app.post('/api/admin/adjust', authMiddleware, adminMiddleware, (req, res) => {
   if (!username || !Number.isFinite(amt) || amt === 0) return res.status(400).json({ error: 'Некорректные данные.' });
   const target = getUserByUsername(username);
   if (!target) return res.status(404).json({ error: 'Игрок не найден.' });
-  const newChips = target.chips + amt;
-  if (newChips < 0) return res.status(400).json({ error: 'Нельзя уйти в минус по балансу.' });
-  db.prepare('UPDATE users SET chips = ? WHERE username = ?').run(newChips, target.username);
+  // Ручное начисление админом — это всегда КУПЛЕННЫЕ фишки (то, что реально
+  // оплачено через кассу), в отдельном от бонусного кошельке.
+  const newReal = target.chips_real + amt;
+  if (newReal < 0) return res.status(400).json({ error: 'Нельзя уйти в минус по балансу.' });
+  db.prepare('UPDATE users SET chips_real = ? WHERE username = ?').run(newReal, target.username);
   db.prepare('INSERT INTO chip_adjustments (username, amount, admin_username, created_at) VALUES (?,?,?,?)')
     .run(target.username, amt, req.dbUser.username, Date.now());
-  res.json({ ok: true, chips: newChips });
+  res.json({ ok: true, chipsReal: newReal });
 });
 
 app.post('/api/admin/ban', authMiddleware, adminMiddleware, (req, res) => {
