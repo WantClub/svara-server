@@ -768,6 +768,22 @@
       <button class="btn secondary" id="saveCashierBtn" style="max-width:260px;">Сохранить</button>
       <div class="err" id="cashierSettingsErr"></div>
     </div>
+    <div class="card-panel">
+      <h3>Подписи кошельков</h3>
+      <p class="hint">Текст на кнопках выбора режима игры («Бонусные» / «Купленные») — сами балансы фишек это никак не меняет, только надписи.</p>
+      <div class="row2">
+        <div>
+          <label>Подпись бонусного кошелька</label>
+          <input type="text" id="walletBonusLabelInput" maxlength="20" placeholder="Бонусные">
+        </div>
+        <div>
+          <label>Подпись купленного кошелька</label>
+          <input type="text" id="walletRealLabelInput" maxlength="20" placeholder="Купленные">
+        </div>
+      </div>
+      <button class="btn secondary" id="saveWalletLabelsBtn" style="max-width:260px;">Сохранить</button>
+      <div class="err" id="walletLabelsErr"></div>
+    </div>
   </div>
 
   <!-- TABLE -->
@@ -1728,6 +1744,7 @@ async function enterAdmin(){
   refreshSlotsStats();
   refreshRakeStats();
   loadCashierSettingsForm();
+  loadWalletLabelsForm();
 }
 async function loadCashierSettingsForm(){
   try{
@@ -1747,6 +1764,28 @@ document.getElementById('saveCashierBtn').addEventListener('click', async ()=>{
   try{
     await api('/api/admin/cashier-buttons', 'POST', { buttons });
     await loadCashierButtons();
+    errEl.style.color = 'var(--green)';
+    errEl.textContent = 'Сохранено!';
+    setTimeout(()=>{ errEl.textContent = ''; errEl.style.color = ''; }, 2000);
+  }catch(e){
+    errEl.style.color = '';
+    errEl.textContent = e.message;
+  }
+});
+async function loadWalletLabelsForm(){
+  try{
+    const data = await api('/api/wallet-labels', 'GET');
+    document.getElementById('walletBonusLabelInput').value = data.bonusLabel;
+    document.getElementById('walletRealLabelInput').value = data.realLabel;
+  }catch(e){}
+}
+document.getElementById('saveWalletLabelsBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('walletLabelsErr'); errEl.textContent = '';
+  const bonusLabel = document.getElementById('walletBonusLabelInput').value;
+  const realLabel = document.getElementById('walletRealLabelInput').value;
+  try{
+    await api('/api/admin/wallet-labels', 'POST', { bonusLabel, realLabel });
+    await loadWalletLabels(); // сразу обновляем подписи на самом кошельке
     errEl.style.color = 'var(--green)';
     errEl.textContent = 'Сохранено!';
     setTimeout(()=>{ errEl.textContent = ''; errEl.style.color = ''; }, 2000);
