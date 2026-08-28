@@ -19,7 +19,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production
 const PORT = process.env.PORT || 3000;
 // Приветственный бонус фишками клуба для каждого нового зарегистрированного
 // игрока — не реальные деньги, просто стартовый баланс для первой игры.
-const WELCOME_BONUS_CHIPS = 100;
+const WELCOME_BONUS_CHIPS = 1000;
 // Домен(ы), которым разрешено обращаться к API/сокетам. Через запятую, если несколько.
 // Пока не задано (пусто) — разрешено всё, чтобы не сломать локальную проверку.
 const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGIN || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -73,6 +73,14 @@ function getClientIp(req) {
 
 function getUserByUsername(username) {
   return db.prepare('SELECT * FROM users WHERE username = ? COLLATE NOCASE').get(username);
+}
+// Хелперы для игр против дома (слоты, спорт, Mines, Crash) — ставка и
+// выигрыш всегда идут из/в тот кошелёк, который у игрока сейчас активен.
+function activeWalletField(user) {
+  return user.active_mode === 'real' ? 'chips_real' : 'chips_bonus';
+}
+function activeBalance(user) {
+  return user[activeWalletField(user)];
 }
 function toPublicUser(u) {
   return {
@@ -161,12 +169,15 @@ app.post('/api/me/mode', authMiddleware, (req, res) => {
   const mode = req.body?.mode;
   if (mode !== 'bonus' && mode !== 'real') return res.status(400).json({ error: 'Режим может быть только "bonus" или "real".' });
 
-  // Нельзя переключать режим, пока сидишь за покерным столом — это может
-  // запутать, из какого кошелька фактически идёт игра прямо сейчас.
+  // Нельзя переключать режим, пока сидишь за покерным столом или у тебя
+  // открыт раунд Mines/Crash — это может запутать, из какого кошелька
+  // фактически идёт игра прямо сейчас.
   const isSeated = Array.from(rooms.values()).some(room =>
     room.seats.some(s => s && s.username === req.dbUser.username)
   );
   if (isSeated) return res.status(400).json({ error: 'Нельзя менять режим, пока вы сидите за столом. Сначала встаньте из-за стола.' });
+  if (minesRounds.has(req.dbUser.username)) return res.status(400).json({ error: 'Нельзя менять режим во время раунда Mines. Сначала завершите раунд.' });
+  if (crashRounds.has(req.dbUser.username)) return res.status(400).json({ error: 'Нельзя менять режим во время раунда Crash. Сначала заберите ставку.' });
 
   db.prepare('UPDATE users SET active_mode = ? WHERE username = ?').run(mode, req.dbUser.username);
   const updated = getUserByUsername(req.dbUser.username);
@@ -219,6 +230,28 @@ app.post('/api/admin/cashier-buttons', authMiddleware, adminMiddleware, (req, re
   res.json({ ok: true, buttons: getCashierButtons() });
 });
 
+// ===================== ПОДПИСИ КОШЕЛЬКОВ (настраиваются владельцем клуба) =====================
+function getWalletLabels() {
+  return {
+    bonusLabel: getSetting('wallet_bonus_label', 'Бонусные'),
+    realLabel: getSetting('wallet_real_label', 'Купленные')
+  };
+}
+app.get('/api/wallet-labels', authMiddleware, (req, res) => {
+  res.json(getWalletLabels());
+});
+app.post('/api/admin/wallet-labels', authMiddleware, adminMiddleware, (req, res) => {
+  const { bonusLabel, realLabel } = req.body || {};
+  if (typeof bonusLabel !== 'string' || typeof realLabel !== 'string' ||
+      bonusLabel.trim().length === 0 || realLabel.trim().length === 0 ||
+      bonusLabel.length > 20 || realLabel.length > 20) {
+    return res.status(400).json({ error: 'Текст подписи: от 1 до 20 символов для каждого кошелька.' });
+  }
+  setSetting('wallet_bonus_label', bonusLabel.trim());
+  setSetting('wallet_real_label', realLabel.trim());
+  res.json({ ok: true, ...getWalletLabels() });
+});
+
 app.post('/api/me/avatar', authMiddleware, (req, res) => {
   const { imageData } = req.body || {};
   if (!imageData || typeof imageData !== 'string') return res.status(400).json({ error: 'Нет данных изображения.' });
@@ -234,8 +267,11 @@ app.post('/api/me/avatar', authMiddleware, (req, res) => {
 
 // ===================== ADMIN ROUTES =====================
 app.get('/api/admin/users', authMiddleware, adminMiddleware, (req, res) => {
-  const rows = db.prepare('SELECT username, chips, is_admin, banned, created_at FROM users ORDER BY created_at DESC').all();
-  res.json({ users: rows.map(u => ({ username: u.username, chips: u.chips, isAdmin: !!u.is_admin, banned: !!u.banned, createdAt: u.created_at })) });
+  const rows = db.prepare('SELECT username, chips_bonus, chips_real, active_mode, is_admin, banned, created_at FROM users ORDER BY created_at DESC').all();
+  res.json({ users: rows.map(u => ({
+    username: u.username, chipsBonus: u.chips_bonus, chipsReal: u.chips_real, activeMode: u.active_mode,
+    isAdmin: !!u.is_admin, banned: !!u.banned, createdAt: u.created_at
+  })) });
 });
 
 app.post('/api/admin/adjust', authMiddleware, adminMiddleware, (req, res) => {
@@ -311,13 +347,15 @@ app.post('/api/sports/bet', authMiddleware, (req, res) => {
   if (!odds) return res.status(400).json({ error: 'На этот исход ставки не принимаются.' });
 
   const user = getUserByUsername(req.dbUser.username);
-  if (st > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+  const wf = activeWalletField(user);
+  const balance = activeBalance(user);
+  if (st > balance) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${balance}.` });
 
-  db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(st, user.username);
-  db.prepare('INSERT INTO sport_bets (username, match_id, pick, stake, odds, status, payout, created_at) VALUES (?,?,?,?,?,?,?,?)')
-    .run(user.username, matchId, pick, st, odds, 'pending', 0, Date.now());
+  db.prepare(`UPDATE users SET ${wf} = ${wf} - ? WHERE username = ?`).run(st, user.username);
+  db.prepare('INSERT INTO sport_bets (username, match_id, pick, stake, odds, status, payout, created_at, mode) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(user.username, matchId, pick, st, odds, 'pending', 0, Date.now(), user.active_mode);
 
-  res.json({ ok: true, chips: user.chips - st });
+  res.json({ ok: true, chips: balance - st });
 });
 
 app.post('/api/admin/sports/create', authMiddleware, adminMiddleware, (req, res) => {
@@ -356,7 +394,10 @@ app.post('/api/admin/sports/resolve', authMiddleware, adminMiddleware, (req, res
       if (b.pick === result) {
         const payout = Math.round(b.stake * b.odds);
         db.prepare('UPDATE sport_bets SET status = ?, payout = ? WHERE id = ?').run('won', payout, b.id);
-        db.prepare('UPDATE users SET chips = chips + ? WHERE username = ? COLLATE NOCASE').run(payout, b.username);
+        // Выигрыш идёт в тот же кошелёк, из которого была сделана ставка —
+        // не обязательно тот, что активен у игрока прямо сейчас.
+        const betMode = b.mode === 'real' ? 'chips_real' : 'chips_bonus';
+        db.prepare(`UPDATE users SET ${betMode} = ${betMode} + ? WHERE username = ? COLLATE NOCASE`).run(payout, b.username);
       } else {
         db.prepare('UPDATE sport_bets SET status = ?, payout = 0 WHERE id = ?').run('lost', b.id);
       }
@@ -385,16 +426,18 @@ app.post('/api/slots/spin', authMiddleware, (req, res) => {
   if (!slots.MACHINES[machineId]) return res.status(400).json({ error: 'Неизвестный автомат.' });
 
   const user = getUserByUsername(req.dbUser.username);
-  if (bet > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+  const wf = activeWalletField(user);
+  const balance = activeBalance(user);
+  if (bet > balance) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${balance}.` });
 
   const result = slots.spinSlots(bet, machineId);
   const net = result.payout - bet;
-  db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(net, user.username);
-  db.prepare('INSERT INTO slot_spins (username, bet, r1, r2, r3, payout, machine_id, created_at) VALUES (?,?,?,?,?,?,?,?)')
-    .run(user.username, bet, result.reels[0], result.reels[1], result.reels[2], result.payout, machineId, Date.now());
+  db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ?`).run(net, user.username);
+  db.prepare('INSERT INTO slot_spins (username, bet, r1, r2, r3, payout, machine_id, created_at, mode) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(user.username, bet, result.reels[0], result.reels[1], result.reels[2], result.payout, machineId, Date.now(), user.active_mode);
 
   const updated = getUserByUsername(user.username);
-  res.json({ ok: true, reels: result.reels, payout: result.payout, chips: updated.chips });
+  res.json({ ok: true, reels: result.reels, payout: result.payout, chips: activeBalance(updated) });
 });
 
 app.get('/api/slots/myspins', authMiddleware, (req, res) => {
@@ -415,15 +458,18 @@ app.post('/api/mines/start', authMiddleware, (req, res) => {
   if (!mines.validSetup(gridSize, minesCount)) return res.status(400).json({ error: 'Некорректные параметры поля.' });
 
   const user = getUserByUsername(req.dbUser.username);
-  if (bet > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+  const wf = activeWalletField(user);
+  const balance = activeBalance(user);
+  if (bet > balance) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${balance}.` });
   if (minesRounds.has(user.username)) return res.status(400).json({ error: 'У вас уже есть незавершённый раунд.' });
 
-  db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(bet, user.username);
+  db.prepare(`UPDATE users SET ${wf} = ${wf} - ? WHERE username = ?`).run(bet, user.username);
   const round = mines.createRound(bet, gridSize, minesCount);
+  round.mode = user.active_mode; // фиксируем режим раунда — выигрыш вернётся именно сюда
   minesRounds.set(user.username, round);
 
   const updated = getUserByUsername(user.username);
-  res.json({ ok: true, chips: updated.chips, gridSize, minesCount });
+  res.json({ ok: true, chips: activeBalance(updated), gridSize, minesCount });
 });
 
 app.post('/api/mines/reveal', authMiddleware, (req, res) => {
@@ -433,28 +479,30 @@ app.post('/api/mines/reveal', authMiddleware, (req, res) => {
   const result = mines.revealTile(round, tileIndex);
   if (!result.ok) return res.status(400).json({ error: result.error });
 
+  const wf = round.mode === 'real' ? 'chips_real' : 'chips_bonus';
   if (result.hitMine || result.allSafeOpened) {
     minesRounds.delete(req.dbUser.username);
     if (result.allSafeOpened) {
-      db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(result.payout, req.dbUser.username);
+      db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ?`).run(result.payout, req.dbUser.username);
     }
-    db.prepare('INSERT INTO mines_rounds (username, bet, grid_size, mines_count, revealed_count, hit_mine, payout, created_at) VALUES (?,?,?,?,?,?,?,?)')
-      .run(req.dbUser.username, round.bet, round.gridSize, round.minesCount, round.revealed.size, result.hitMine ? 1 : 0, result.payout, Date.now());
+    db.prepare('INSERT INTO mines_rounds (username, bet, grid_size, mines_count, revealed_count, hit_mine, payout, created_at, mode) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(req.dbUser.username, round.bet, round.gridSize, round.minesCount, round.revealed.size, result.hitMine ? 1 : 0, result.payout, Date.now(), round.mode);
   }
   const updated = getUserByUsername(req.dbUser.username);
-  res.json({ ok: true, ...result, mines: result.hitMine ? Array.from(round.mines) : undefined, chips: updated.chips });
+  res.json({ ok: true, ...result, mines: result.hitMine ? Array.from(round.mines) : undefined, chips: activeBalance(updated) });
 });
 
 app.post('/api/mines/cashout', authMiddleware, (req, res) => {
   const round = minesRounds.get(req.dbUser.username);
   const result = mines.cashOut(round);
   if (!result.ok) return res.status(400).json({ error: result.error });
-  db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(result.payout, req.dbUser.username);
-  db.prepare('INSERT INTO mines_rounds (username, bet, grid_size, mines_count, revealed_count, hit_mine, payout, created_at) VALUES (?,?,?,?,?,0,?,?)')
-    .run(req.dbUser.username, round.bet, round.gridSize, round.minesCount, round.revealed.size, result.payout, Date.now());
+  const wf = round.mode === 'real' ? 'chips_real' : 'chips_bonus';
+  db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ?`).run(result.payout, req.dbUser.username);
+  db.prepare('INSERT INTO mines_rounds (username, bet, grid_size, mines_count, revealed_count, hit_mine, payout, created_at, mode) VALUES (?,?,?,?,?,0,?,?,?)')
+    .run(req.dbUser.username, round.bet, round.gridSize, round.minesCount, round.revealed.size, result.payout, Date.now(), round.mode);
   minesRounds.delete(req.dbUser.username);
   const updated = getUserByUsername(req.dbUser.username);
-  res.json({ ok: true, ...result, chips: updated.chips });
+  res.json({ ok: true, ...result, chips: activeBalance(updated) });
 });
 
 app.get('/api/mines/myrounds', authMiddleware, (req, res) => {
@@ -470,7 +518,9 @@ app.post('/api/crash/start', authMiddleware, (req, res) => {
   if (!Number.isFinite(bet) || bet <= 0) return res.status(400).json({ error: 'Некорректная ставка.' });
 
   const user = getUserByUsername(req.dbUser.username);
-  if (bet > user.chips) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${user.chips}.` });
+  const wf = activeWalletField(user);
+  const balance = activeBalance(user);
+  if (bet > balance) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${balance}.` });
 
   // Если старый раунд просрочен (игрок ушёл, не забрав) — записываем как
   // проигрыш в историю (ставка уже была списана при старте) и освобождаем слот.
@@ -479,17 +529,18 @@ app.post('/api/crash/start', authMiddleware, (req, res) => {
     return res.status(400).json({ error: 'У вас уже есть незавершённый раунд.' });
   }
   if (existing) {
-    db.prepare('INSERT INTO crash_rounds (username, bet, crash_point, cashed_out_at, payout, created_at) VALUES (?,?,?,?,0,?)')
-      .run(user.username, existing.bet, existing.crashPoint, null, Date.now());
+    db.prepare('INSERT INTO crash_rounds (username, bet, crash_point, cashed_out_at, payout, created_at, mode) VALUES (?,?,?,?,0,?,?)')
+      .run(user.username, existing.bet, existing.crashPoint, null, Date.now(), existing.mode || 'bonus');
     crashRounds.delete(user.username);
   }
 
-  db.prepare('UPDATE users SET chips = chips - ? WHERE username = ?').run(bet, user.username);
+  db.prepare(`UPDATE users SET ${wf} = ${wf} - ? WHERE username = ?`).run(bet, user.username);
   const round = crash.createRound(bet);
+  round.mode = user.active_mode; // фиксируем режим раунда — выигрыш вернётся именно сюда
   crashRounds.set(user.username, round);
 
   const updated = getUserByUsername(user.username);
-  res.json({ ok: true, chips: updated.chips, growthRate: crash.GROWTH_RATE, startedAt: round.startedAt });
+  res.json({ ok: true, chips: activeBalance(updated), growthRate: crash.GROWTH_RATE, startedAt: round.startedAt });
 });
 
 app.post('/api/crash/cashout', authMiddleware, (req, res) => {
@@ -497,14 +548,15 @@ app.post('/api/crash/cashout', authMiddleware, (req, res) => {
   if (!round) return res.status(400).json({ error: 'Нет активного раунда.' });
   const result = crash.cashOut(round);
   if (!result.ok) return res.status(400).json({ error: result.error });
+  const wf = round.mode === 'real' ? 'chips_real' : 'chips_bonus';
   if (result.payout > 0) {
-    db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(result.payout, req.dbUser.username);
+    db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ?`).run(result.payout, req.dbUser.username);
   }
-  db.prepare('INSERT INTO crash_rounds (username, bet, crash_point, cashed_out_at, payout, created_at) VALUES (?,?,?,?,?,?)')
-    .run(req.dbUser.username, round.bet, round.crashPoint, result.crashed ? null : result.multiplier, result.payout, Date.now());
+  db.prepare('INSERT INTO crash_rounds (username, bet, crash_point, cashed_out_at, payout, created_at, mode) VALUES (?,?,?,?,?,?,?)')
+    .run(req.dbUser.username, round.bet, round.crashPoint, result.crashed ? null : result.multiplier, result.payout, Date.now(), round.mode);
   crashRounds.delete(req.dbUser.username);
   const updated = getUserByUsername(req.dbUser.username);
-  res.json({ ok: true, ...result, chips: updated.chips });
+  res.json({ ok: true, ...result, chips: activeBalance(updated) });
 });
 
 app.get('/api/crash/myrounds', authMiddleware, (req, res) => {
@@ -554,7 +606,8 @@ app.get('/api/admin/player/:username/stats', authMiddleware, adminMiddleware, (r
 
   res.json({
     username: target.username,
-    currentChips: target.chips,
+    currentChipsBonus: target.chips_bonus,
+    currentChipsReal: target.chips_real,
     adjustments,
     hands: {
       played: handsRow.played || 0,
@@ -577,11 +630,11 @@ app.get('/api/admin/check-multiaccount', authMiddleware, adminMiddleware, (req, 
   const ip = req.query.ip;
   if (!ip) return res.status(400).json({ error: 'Не указан IP-адрес.' });
   const rows = db.prepare(
-    'SELECT username, chips, is_admin, banned, created_at FROM users WHERE reg_ip = ? ORDER BY created_at ASC'
+    'SELECT username, chips_bonus, chips_real, is_admin, banned, created_at FROM users WHERE reg_ip = ? ORDER BY created_at ASC'
   ).all(ip);
   res.json({
     ip,
-    accounts: rows.map(u => ({ username: u.username, chips: u.chips, isAdmin: !!u.is_admin, banned: !!u.banned, createdAt: u.created_at }))
+    accounts: rows.map(u => ({ username: u.username, chipsBonus: u.chips_bonus, chipsReal: u.chips_real, isAdmin: !!u.is_admin, banned: !!u.banned, createdAt: u.created_at }))
   });
 });
 
@@ -624,18 +677,29 @@ function broadcastRoom(code) {
 }
 
 function broadcastLobby() {
-  const list = Array.from(rooms.values())
-    .filter(r => r.phase !== 'closed')
-    .map(r => ({
-      code: r.code,
-      hostName: r.hostName,
-      betUnit: r.betUnit,
-      playerCount: game.seatedIndices(r).length,
-      maxSeats: r.maxSeats || r.seats.length,
-      phase: r.phase,
-      players: r.seats.filter(Boolean).map(s => ({ username: s.username, avatar: s.avatar || null }))
-    }));
-  io.to('lobby').emit('lobby:rooms', list);
+  const allRooms = Array.from(rooms.values()).filter(r => r.phase !== 'closed');
+  const lobbySocketIds = io.sockets.adapter.rooms.get('lobby');
+  if (!lobbySocketIds) return;
+  lobbySocketIds.forEach(sid => {
+    const meta = socketMeta.get(sid);
+    const user = meta && meta.username ? getUserByUsername(meta.username) : null;
+    const viewerMode = user ? user.active_mode : 'bonus';
+    // Каждый видит и может присоединиться только к столам своего текущего
+    // режима — бонусные и купленные столы никогда не пересекаются.
+    const list = allRooms
+      .filter(r => (r.mode || 'bonus') === viewerMode)
+      .map(r => ({
+        code: r.code,
+        hostName: r.hostName,
+        betUnit: r.betUnit,
+        playerCount: game.seatedIndices(r).length,
+        maxSeats: r.maxSeats || r.seats.length,
+        phase: r.phase,
+        mode: r.mode || 'bonus',
+        players: r.seats.filter(Boolean).map(s => ({ username: s.username, avatar: s.avatar || null }))
+      }));
+    io.to(sid).emit('lobby:rooms', list);
+  });
 }
 
 function cashOutSeat(room, idx) {
@@ -643,7 +707,10 @@ function cashOutSeat(room, idx) {
   if (!s) return;
   const target = getUserByUsername(s.username);
   if (target) {
-    db.prepare('UPDATE users SET chips = chips + ? WHERE username = ?').run(s.chips, target.username);
+    // Возвращаем именно в тот кошелёк, из которого стол был "запитан" —
+    // весь стол целиком либо бонусный, либо купленный, никогда не смешиваются.
+    const field = room.mode === 'real' ? 'chips_real' : 'chips_bonus';
+    db.prepare(`UPDATE users SET ${field} = ${field} + ? WHERE username = ?`).run(s.chips, target.username);
   }
   room.log.push(`${s.username} встал(а) из-за стола (забрал(а) ${s.chips} фишек).`);
   room.seats[idx] = null;
@@ -797,14 +864,21 @@ io.on('connection', (socket) => {
     const seatCount = [2, 3, 4, 5, 6].includes(parseInt(maxSeats)) ? parseInt(maxSeats) : 6;
     const user = getUserByUsername(socket.username);
     if (!user) return cb({ ok: false, error: 'Пользователь не найден.' });
-    if (user.chips <= 0) return cb({ ok: false, error: 'На балансе нет фишек — обратитесь к администратору клуба.' });
-    if (user.chips < bu) return cb({ ok: false, error: `Недостаточно фишек для этой ставки. На балансе: ${user.chips}.` });
 
-    const bi = user.chips; // садимся всем балансом кошелька
-    db.prepare('UPDATE users SET chips = 0 WHERE username = ?').run(user.username);
+    // Стол целиком "живёт" в одном режиме — бонусном либо купленном,
+    // смотря что сейчас выбрано у создателя стола. Смешивание невозможно:
+    // остальные смогут зайти только с тем же режимом (см. table:join).
+    const walletField = user.active_mode === 'real' ? 'chips_real' : 'chips_bonus';
+    const balance = user[walletField];
+    if (balance <= 0) return cb({ ok: false, error: 'На балансе нет фишек в этом режиме — обратитесь к администратору клуба или переключите режим.' });
+    if (balance < bu) return cb({ ok: false, error: `Недостаточно фишек для этой ставки. На балансе: ${balance}.` });
+
+    const bi = balance; // садимся всем балансом кошелька (этого режима)
+    db.prepare(`UPDATE users SET ${walletField} = 0 WHERE username = ?`).run(user.username);
 
     const code = genCode();
     const room = game.createRoom(code, bu, socket.username, seatCount);
+    room.mode = user.active_mode;
     room.seats[0] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, consecutiveTimeouts: 0, socketId: socket.id };
     rooms.set(code, room);
 
@@ -835,11 +909,20 @@ io.on('connection', (socket) => {
 
     const user = getUserByUsername(socket.username);
     if (!user) return cb({ ok: false, error: 'Пользователь не найден.' });
-    if (user.chips <= 0) return cb({ ok: false, error: 'На балансе нет фишек — обратитесь к администратору клуба.' });
-    if (user.chips < room.betUnit) return cb({ ok: false, error: `Недостаточно фишек для этого стола (нужно минимум ${room.betUnit}). На балансе: ${user.chips}.` });
 
-    const bi = user.chips; // садимся всем балансом кошелька
-    db.prepare('UPDATE users SET chips = 0 WHERE username = ?').run(user.username);
+    const roomMode = room.mode || 'bonus';
+    if (user.active_mode !== roomMode) {
+      const modeName = roomMode === 'real' ? 'купленных' : 'бонусных';
+      return cb({ ok: false, error: `Этот стол на ${modeName} фишках — переключите свой режим, чтобы присоединиться.` });
+    }
+
+    const walletField = roomMode === 'real' ? 'chips_real' : 'chips_bonus';
+    const balance = user[walletField];
+    if (balance <= 0) return cb({ ok: false, error: 'На балансе нет фишек в этом режиме — обратитесь к администратору клуба или переключите режим.' });
+    if (balance < room.betUnit) return cb({ ok: false, error: `Недостаточно фишек для этого стола (нужно минимум ${room.betUnit}). На балансе: ${balance}.` });
+
+    const bi = balance; // садимся всем балансом кошелька (этого режима)
+    db.prepare(`UPDATE users SET ${walletField} = 0 WHERE username = ?`).run(user.username);
 
     room.seats[emptyIdx] = { username: socket.username, avatar: user.avatar || null, chips: bi, hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, consecutiveTimeouts: 0, socketId: socket.id };
     room.log.push(`${socket.username} присоединился(-лась) за стол (${bi} фишек).`);

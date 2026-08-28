@@ -74,6 +74,17 @@
   .flip-row{display:flex; gap:2px;}
   .flip-digit{width:18px; height:26px; background:var(--surface); border:1px solid var(--panel-line); border-radius:3px; display:flex; align-items:center; justify-content:center; font-family:var(--font-mono); font-weight:700; font-size:14px; color:var(--gold);}
   .dash-balance{display:flex; align-items:center; gap:10px; margin:6px 0 4px;}
+  .wallet-modes-row{display:flex; gap:12px; margin:10px 0 4px;}
+  .wallet-mode-box{
+    flex:1; cursor:pointer; text-align:center; padding:16px 10px; border-radius:12px;
+    background:var(--surface); border:2px solid var(--panel-line); transition:border-color 0.15s ease, background 0.15s ease;
+  }
+  .wallet-mode-box:hover{ border-color:var(--gold-dim); }
+  .wallet-mode-box.active{ border-color:var(--gold); background:rgba(198,161,91,0.10); box-shadow:0 0 18px rgba(198,161,91,0.18); }
+  .wallet-mode-box .wm-label{font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;}
+  .wallet-mode-box.active .wm-label{ color:var(--gold); }
+  .wallet-mode-box .wm-amount{font-family:var(--font-mono); font-size:24px; font-weight:700; color:var(--ivory);}
+  .wallet-mode-box.active .wm-amount{ color:var(--gold); }
   .dash-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
   .dash-actions .btn{width:auto; flex:1; min-width:140px; margin-top:0;}
   .open-rooms-list{margin-top:10px;}
@@ -522,7 +533,7 @@
     </div>
     <div class="card-panel" id="registerPane" style="display:none;">
       <h3>Регистрация</h3>
-      <p class="hint">Первый зарегистрированный аккаунт на сайте автоматически становится администратором клуба. Каждому новому игроку — 100 фишек в подарок на старт.</p>
+      <p class="hint">Первый зарегистрированный аккаунт на сайте автоматически становится администратором клуба. Каждому новому игроку — 1000 бонусных фишек в подарок на старт.</p>
       <label>Логин</label><input type="text" id="regUser" maxlength="20" placeholder="латиница/цифры, без пробелов">
       <label>Пароль</label><input type="password" id="regPass">
       <p class="hint" style="margin:6px 0 0;">Минимум 6 символов.</p>
@@ -538,8 +549,17 @@
   <div id="dashView" class="wide" style="display:none;">
     <div class="card-panel">
       <h3>Ваш кошелёк</h3>
-      <div class="dash-balance"><div class="flip-row" id="dashBalanceDigits"></div><span style="color:var(--muted); font-size:12px;">фишек</span></div>
-      <p class="hint" style="margin-top:10px;">Пополнение и списание фишек делает только администратор клуба вручную. Когда садитесь за стол — уходит весь баланс кошелька.</p>
+      <div class="wallet-modes-row">
+        <div class="wallet-mode-box" id="walletBonusBox" data-mode="bonus">
+          <div class="wm-label" id="wmBonusLabel">Бонусные</div>
+          <div class="wm-amount" id="wmBonusAmount">0</div>
+        </div>
+        <div class="wallet-mode-box" id="walletRealBox" data-mode="real">
+          <div class="wm-label" id="wmRealLabel">Купленные</div>
+          <div class="wm-amount" id="wmRealAmount">0</div>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:10px;">Нажмите на кошелёк, чтобы играть на бонусные или на купленные фишки. Игроки разных режимов не пересекаются за одним столом.</p>
       <p class="hint" style="margin-top:4px; color:var(--gold);">Курс: 100 фишек ≈ 1$</p>
     </div>
     <div class="card-panel">
@@ -706,7 +726,7 @@
       <input type="text" id="adminSearch" placeholder="Поиск по логину…" class="search-row" style="width:100%; max-width:280px;">
       <div style="overflow-x:auto;">
         <table class="admin-table" id="adminTable">
-          <thead><tr><th>Логин</th><th>Баланс</th><th>Статус</th><th>Регистрация</th><th>Действия</th></tr></thead>
+          <thead><tr><th>Логин</th><th>🎁 Бонусные</th><th>💳 Купленные</th><th>Статус</th><th>Регистрация</th><th>Действия</th></tr></thead>
           <tbody id="adminTbody"></tbody>
         </table>
       </div>
@@ -865,6 +885,14 @@ async function loadCashierButtons(){
   }catch(e){}
 }
 
+async function loadWalletLabels(){
+  try{
+    const data = await api('/api/wallet-labels', 'GET');
+    document.getElementById('wmBonusLabel').textContent = data.bonusLabel;
+    document.getElementById('wmRealLabel').textContent = data.realLabel;
+  }catch(e){}
+}
+
 /* ===================== API HELPERS ===================== */
 async function api(path, method, body){
   const res = await fetch(API + path, {
@@ -1008,12 +1036,23 @@ async function enterDashboard(){
   if(socket) socket.emit('lobby:join');
 }
 function renderDashBalance(){
-  const balEl = document.getElementById('dashBalanceDigits');
-  balEl.innerHTML = '';
-  String(me.chips).split('').forEach(ch=>{
-    const d = document.createElement('div'); d.className = 'flip-digit'; d.textContent = ch; balEl.appendChild(d);
-  });
+  document.getElementById('wmBonusAmount').textContent = me.chipsBonus;
+  document.getElementById('wmRealAmount').textContent = me.chipsReal;
+  document.getElementById('walletBonusBox').classList.toggle('active', me.activeMode === 'bonus');
+  document.getElementById('walletRealBox').classList.toggle('active', me.activeMode === 'real');
 }
+async function switchWalletMode(mode){
+  if(me.activeMode === mode) return;
+  try{
+    const data = await api('/api/me/mode', 'POST', {mode});
+    me = data.user;
+    renderDashBalance();
+    renderTopbar();
+    if(socket) socket.emit('lobby:join'); // сразу обновляем список столов под новый режим
+  }catch(e){ alert(e.message); }
+}
+document.getElementById('walletBonusBox').addEventListener('click', ()=> switchWalletMode('bonus'));
+document.getElementById('walletRealBox').addEventListener('click', ()=> switchWalletMode('real'));
 function avatarHtml(avatarUrl, username, sizeClass){
   const letter = (username||'?').slice(0,1).toUpperCase();
   const cls = 'avatar-circle' + (sizeClass?(' '+sizeClass):'');
@@ -1742,10 +1781,12 @@ let adminCurrentPage = 1;
 async function renderAdminUsers(filter, keepPage){
   let list;
   try{ list = (await api('/api/admin/users','GET')).users; }catch(e){ return; }
-  const totalChips = list.reduce((a,u)=>a+u.chips,0);
+  const totalBonus = list.reduce((a,u)=>a+u.chipsBonus,0);
+  const totalReal = list.reduce((a,u)=>a+u.chipsReal,0);
   document.getElementById('adminStats').innerHTML = `
     <div class="stat-box"><div class="n">${list.length}</div><div class="l">игроков</div></div>
-    <div class="stat-box"><div class="n">${totalChips}</div><div class="l">фишек в обороте</div></div>
+    <div class="stat-box"><div class="n">${totalBonus}</div><div class="l">бонусных фишек в обороте</div></div>
+    <div class="stat-box"><div class="n">${totalReal}</div><div class="l">купленных фишек в обороте</div></div>
     <div class="stat-box"><div class="n">${list.filter(u=>u.banned).length}</div><div class="l">забанено</div></div>
   `;
   const q = (filter||'').toLowerCase();
@@ -1758,14 +1799,15 @@ async function renderAdminUsers(filter, keepPage){
 
   document.getElementById('adminTbody').innerHTML = pageRows.map(u => `
     <tr>
-      <td>${u.username}</td>
-      <td style="font-family:var(--font-mono); color:var(--gold);">${u.chips}</td>
+      <td>${u.username}${u.activeMode==='real'?' <span class="pill" style="background:rgba(198,161,91,0.15); color:var(--gold);">💳</span>':' <span class="pill" style="background:rgba(255,255,255,0.08); color:var(--muted);">🎁</span>'}</td>
+      <td style="font-family:var(--font-mono); color:var(--muted);">🎁 ${u.chipsBonus}</td>
+      <td style="font-family:var(--font-mono); color:var(--gold);">💳 ${u.chipsReal}</td>
       <td>${u.isAdmin?'<span class="pill admin">админ</span>':''}${u.banned?'<span class="pill banned">бан</span>':'<span class="pill active">активен</span>'}</td>
       <td style="color:var(--muted); font-size:11.5px;">${new Date(u.createdAt).toLocaleDateString('ru-RU')}</td>
       <td><div class="admin-actions">
         <button data-act="stats" data-u="${u.username}">статистика</button>
-        <button data-act="add" data-u="${u.username}">+ фишки</button>
-        <button data-act="sub" data-u="${u.username}">− фишки</button>
+        <button data-act="add" data-u="${u.username}">+ купленные</button>
+        <button data-act="sub" data-u="${u.username}">− купленные</button>
         <button class="ban" data-act="ban" data-u="${u.username}">${u.banned?'разбан':'бан'}</button>
         <button class="adm" data-act="adm" data-u="${u.username}">${u.isAdmin?'снять админа':'сделать админом'}</button>
       </div></td>
@@ -2373,6 +2415,7 @@ window.addEventListener('appinstalled', () => {
     me = data.user;
     connectSocket();
     await loadCashierButtons();
+    await loadWalletLabels();
     await enterDashboard();
   }catch(e){
     logout();
