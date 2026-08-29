@@ -461,7 +461,19 @@ app.post('/api/mines/start', authMiddleware, (req, res) => {
   const wf = activeWalletField(user);
   const balance = activeBalance(user);
   if (bet > balance) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${balance}.` });
-  if (minesRounds.has(user.username)) return res.status(400).json({ error: 'У вас уже есть незавершённый раунд.' });
+
+  // Если старый раунд забыт (закрыл вкладку и не вернулся дольше 30 минут) —
+  // засчитываем его как проигрыш (ставка уже была списана при старте) и
+  // освобождаем место для нового, вместо того чтобы блокировать игрока навсегда.
+  const existingRound = minesRounds.get(user.username);
+  if (existingRound && !mines.isExpired(existingRound)) {
+    return res.status(400).json({ error: 'У вас уже есть незавершённый раунд.' });
+  }
+  if (existingRound) {
+    db.prepare('INSERT INTO mines_rounds (username, bet, grid_size, mines_count, revealed_count, hit_mine, payout, created_at, mode) VALUES (?,?,?,?,?,0,0,?,?)')
+      .run(user.username, existingRound.bet, existingRound.gridSize, existingRound.minesCount, existingRound.revealed.size, Date.now(), existingRound.mode || 'bonus');
+    minesRounds.delete(user.username);
+  }
 
   db.prepare(`UPDATE users SET ${wf} = ${wf} - ? WHERE username = ?`).run(bet, user.username);
   const round = mines.createRound(bet, gridSize, minesCount);
@@ -470,6 +482,22 @@ app.post('/api/mines/start', authMiddleware, (req, res) => {
 
   const updated = getUserByUsername(user.username);
   res.json({ ok: true, chips: activeBalance(updated), gridSize, minesCount });
+});
+
+// Проверка активного раунда — нужна, чтобы при повторном открытии экрана
+// (после обновления страницы) можно было честно продолжить уже начатый
+// раунд, а не потерять его без возможности забрать выигрыш.
+app.get('/api/mines/current', authMiddleware, (req, res) => {
+  const round = minesRounds.get(req.dbUser.username);
+  if (!round || !round.active) return res.json({ active: false });
+  res.json({
+    active: true,
+    bet: round.bet,
+    gridSize: round.gridSize,
+    minesCount: round.minesCount,
+    revealed: Array.from(round.revealed),
+    multiplier: mines.multiplierAfter(round.gridSize, round.minesCount, round.revealed.size)
+  });
 });
 
 app.post('/api/mines/reveal', authMiddleware, (req, res) => {
@@ -541,6 +569,13 @@ app.post('/api/crash/start', authMiddleware, (req, res) => {
 
   const updated = getUserByUsername(user.username);
   res.json({ ok: true, chips: activeBalance(updated), growthRate: crash.GROWTH_RATE, startedAt: round.startedAt });
+});
+
+// Проверка активного раунда — та же логика восстановления, что и у Mines.
+app.get('/api/crash/current', authMiddleware, (req, res) => {
+  const round = crashRounds.get(req.dbUser.username);
+  if (!round || crash.isExpired(round)) return res.json({ active: false });
+  res.json({ active: true, bet: round.bet, growthRate: crash.GROWTH_RATE, startedAt: round.startedAt });
 });
 
 app.post('/api/crash/cashout', authMiddleware, (req, res) => {

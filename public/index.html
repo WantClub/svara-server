@@ -365,6 +365,12 @@
   }
   .drawer-name{font-size:14px; font-weight:700;}
   .drawer-role{font-size:11px; color:var(--gold);}
+  .lang-switch-row{display:flex; gap:8px; padding:0 20px 14px;}
+  .lang-switch-btn{
+    flex:1; padding:7px; border-radius:7px; border:1px solid var(--panel-line); background:var(--surface);
+    color:var(--muted); font-family:var(--font-mono); font-size:12px; font-weight:700; cursor:pointer;
+  }
+  .lang-switch-btn.active{ border-color:var(--gold); color:var(--gold); background:rgba(198,161,91,0.12); }
   .drawer-item{
     display:flex; align-items:center; gap:12px; padding:11px 8px; border-radius:7px; cursor:pointer;
     font-size:13.5px; color:var(--ivory); margin-bottom:2px;
@@ -506,42 +512,50 @@
         <div class="drawer-role" id="drawerRole"></div>
       </div>
     </div>
-    <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> Лобби</div>
-    <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> Слоты</div>
-    <div class="drawer-item" id="drwFastGames"><span class="ic">⚡</span> Быстрые игры</div>
-    <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> Спорт</div>
-    <div class="drawer-item" id="drwTutorial"><span class="ic">🎓</span> Обучение</div>
-    <div class="drawer-item" id="drwRules"><span class="ic">📜</span> Правила клуба</div>
+    <div class="lang-switch-row">
+      <button class="lang-switch-btn" data-lang="ru">RU</button>
+      <button class="lang-switch-btn" data-lang="uz">UZ</button>
+    </div>
+    <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> <span data-i18n="menu_lobby">Лобби</span></div>
+    <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> <span data-i18n="menu_slots">Слоты</span></div>
+    <div class="drawer-item" id="drwFastGames"><span class="ic">⚡</span> <span data-i18n="menu_fastgames">Быстрые игры</span></div>
+    <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> <span data-i18n="menu_sport">Спорт</span></div>
+    <div class="drawer-item" id="drwTutorial"><span class="ic">🎓</span> <span data-i18n="menu_tutorial">Обучение</span></div>
+    <div class="drawer-item" id="drwRules"><span class="ic">📜</span> <span data-i18n="menu_rules">Правила клуба</span></div>
     <div class="drawer-item" id="drwInstallApp" style="display:none;"><span class="ic">📲</span> Установить приложение</div>
-    <div class="drawer-item" id="drwAdmin" style="display:none;"><span class="ic">⚙️</span> Админка</div>
-    <div class="drawer-item danger" id="drwLogout"><span class="ic">↩</span> Выход</div>
+    <div class="drawer-item" id="drwAdmin" style="display:none;"><span class="ic">⚙️</span> <span data-i18n="menu_admin">Админка</span></div>
+    <div class="drawer-item danger" id="drwLogout"><span class="ic">↩</span> <span data-i18n="menu_logout">Выход</span></div>
   </div>
 
   <!-- AUTH -->
   <div id="authView" class="limited">
     <div class="logo-mark"><div class="spade">♠</div><div class="spark">✦</div></div>
     <div class="brand">SVARA STARS<span class="sub">приватный карточный клуб — вход только по аккаунту</span></div>
+    <div class="lang-switch-row">
+      <button class="lang-switch-btn" data-lang="ru">RU</button>
+      <button class="lang-switch-btn" data-lang="uz">UZ</button>
+    </div>
     <div class="tabbar">
-      <div class="tabbtn active" data-authtab="login">Вход</div>
-      <div class="tabbtn" data-authtab="register">Регистрация</div>
+      <div class="tabbtn active" data-authtab="login" data-i18n="auth_login_tab">Вход</div>
+      <div class="tabbtn" data-authtab="register" data-i18n="auth_register_tab">Регистрация</div>
     </div>
     <div class="card-panel" id="loginPane">
-      <h3>Вход в клуб</h3>
-      <label>Логин</label><input type="text" id="loginUser" maxlength="20">
-      <label>Пароль</label><input type="password" id="loginPass">
-      <button class="btn" id="loginBtn">Войти</button>
+      <h3 data-i18n="auth_login_title">Вход в клуб</h3>
+      <label data-i18n="auth_username">Логин</label><input type="text" id="loginUser" maxlength="20">
+      <label data-i18n="auth_password">Пароль</label><input type="password" id="loginPass">
+      <button class="btn" id="loginBtn" data-i18n="auth_login_btn">Войти</button>
       <div class="err" id="loginErr"></div>
     </div>
     <div class="card-panel" id="registerPane" style="display:none;">
-      <h3>Регистрация</h3>
+      <h3 data-i18n="auth_register_title">Регистрация</h3>
       <p class="hint">Первый зарегистрированный аккаунт на сайте автоматически становится администратором клуба. Каждому новому игроку — 1000 бонусных фишек в подарок на старт.</p>
-      <label>Логин</label><input type="text" id="regUser" maxlength="20" placeholder="латиница/цифры, без пробелов">
-      <label>Пароль</label><input type="password" id="regPass">
+      <label data-i18n="auth_username">Логин</label><input type="text" id="regUser" maxlength="20" placeholder="латиница/цифры, без пробелов">
+      <label data-i18n="auth_password">Пароль</label><input type="password" id="regPass">
       <p class="hint" style="margin:6px 0 0;">Минимум 6 символов.</p>
       <label style="display:flex; align-items:center; gap:8px; text-transform:none; letter-spacing:0; font-size:12.5px; color:var(--ivory); margin-top:14px; cursor:pointer;">
         <input type="checkbox" id="regRules" style="width:auto; margin:0;"> Принимаю <span style="color:var(--gold); text-decoration:underline; margin-left:3px;" id="rulesLinkText">Правила клуба</span>
       </label>
-      <button class="btn secondary" id="regBtn" disabled>Создать аккаунт</button>
+      <button class="btn secondary" id="regBtn" disabled data-i18n="auth_register_btn">Создать аккаунт</button>
       <div class="err" id="regErr"></div>
     </div>
   </div>
@@ -549,7 +563,7 @@
   <!-- DASHBOARD -->
   <div id="dashView" class="wide" style="display:none;">
     <div class="card-panel">
-      <h3>Ваш кошелёк</h3>
+      <h3 data-i18n="wallet_title">Ваш кошелёк</h3>
       <div class="wallet-modes-row">
         <div class="wallet-mode-box" id="walletBonusBox" data-mode="bonus">
           <div class="wm-label" id="wmBonusLabel">Бонусные</div>
@@ -560,8 +574,8 @@
           <div class="wm-amount" id="wmRealAmount">0</div>
         </div>
       </div>
-      <p class="hint" style="margin-top:10px;">Нажмите на кошелёк, чтобы играть на бонусные или на купленные фишки. Игроки разных режимов не пересекаются за одним столом.</p>
-      <p class="hint" style="margin-top:4px; color:var(--gold);">Курс: 100 фишек ≈ 1$</p>
+      <p class="hint" style="margin-top:10px;" data-i18n="wallet_hint1">Нажмите на кошелёк, чтобы играть на бонусные или на купленные фишки. Игроки разных режимов не пересекаются за одним столом.</p>
+      <p class="hint" style="margin-top:4px; color:var(--gold);" data-i18n="wallet_rate">Курс: 100 фишек ≈ 1$</p>
     </div>
     <div class="card-panel">
       <div class="lobby-tabs">
@@ -584,38 +598,38 @@
   <!-- ОБУЧЕНИЕ -->
   <div id="tutorialView" class="wide" style="display:none;">
     <div class="card-panel">
-      <h3>🃏 Как играть в Свару</h3>
-      <p class="hint">Каждому игроку раздаётся по 3 карты. По кругу все делают ставки — сравнивают текущую ставку, поднимают её, либо пасуют. Когда все, кто остался в игре, сравняли ставки — карты открываются, и банк забирает тот, у кого рука сильнее.</p>
-      <p class="hint"><b style="color:var(--gold);">Как считаются очки:</b> если у вас 2 или 3 карты одной масти — их очки складываются (валет/дама/король = 10, туз = 11, остальные — по номиналу). Если все три карты разных мастей — считается только одна, самая старшая из них.</p>
-      <p class="hint"><b style="color:var(--gold);">Тройка тузов («Свара!»)</b> — единственная особая комбинация, она побеждает всегда, независимо от очков у соперников. Любая другая тройка одинаковых карт (например, три дамы) особого статуса не имеет и сравнивается по очкам как обычно.</p>
-      <p class="hint"><b style="color:var(--gold);">Ничья:</b> если у нескольких игроков очки совпали — банк делится между ними поровну.</p>
+      <h3 data-i18n="tut_poker_title">🃏 Как играть в Свару</h3>
+      <p class="hint" data-i18n="tut_poker_p1">Каждому игроку раздаётся по 3 карты. По кругу все делают ставки — сравнивают текущую ставку, поднимают её, либо пасуют. Когда все, кто остался в игре, сравняли ставки — карты открываются, и банк забирает тот, у кого рука сильнее.</p>
+      <p class="hint" data-i18n="tut_poker_p2"><b style="color:var(--gold);">Как считаются очки:</b> если у вас 2 или 3 карты одной масти — их очки складываются (валет/дама/король = 10, туз = 11, остальные — по номиналу). Если все три карты разных мастей — считается только одна, самая старшая из них.</p>
+      <p class="hint" data-i18n="tut_poker_p3"><b style="color:var(--gold);">Тройка тузов («Свара!»)</b> — единственная особая комбинация, она побеждает всегда, независимо от очков у соперников. Любая другая тройка одинаковых карт (например, три дамы) особого статуса не имеет и сравнивается по очкам как обычно.</p>
+      <p class="hint" data-i18n="tut_poker_p4"><b style="color:var(--gold);">Ничья:</b> если у нескольких игроков очки совпали — банк делится между ними поровну.</p>
     </div>
 
     <div class="card-panel">
-      <h3>💰 Бонусные и купленные фишки</h3>
-      <p class="hint"><b style="color:var(--gold);">Бонусные</b> — фишки, которые вы получаете бесплатно при регистрации. Не связаны с реальными деньгами.</p>
-      <p class="hint"><b style="color:var(--gold);">Купленные</b> — фишки, которые начисляет администратор клуба вручную после оплаты.</p>
-      <p class="hint">На главном экране нажмите на нужный кошелёк, чтобы переключить режим игры. Игроки в разных режимах никогда не пересекаются за одним столом — вы видите и можете присоединиться только к столам своего текущего режима.</p>
+      <h3 data-i18n="tut_wallets_title">💰 Бонусные и купленные фишки</h3>
+      <p class="hint" data-i18n="tut_wallets_p1"><b style="color:var(--gold);">Бонусные</b> — фишки, которые вы получаете бесплатно при регистрации. Не связаны с реальными деньгами.</p>
+      <p class="hint" data-i18n="tut_wallets_p2"><b style="color:var(--gold);">Купленные</b> — фишки, которые начисляет администратор клуба вручную после оплаты.</p>
+      <p class="hint" data-i18n="tut_wallets_p3">На главном экране нажмите на нужный кошелёк, чтобы переключить режим игры. Игроки в разных режимах никогда не пересекаются за одним столом — вы видите и можете присоединиться только к столам своего текущего режима.</p>
     </div>
 
     <div class="card-panel">
-      <h3>🎰 Слоты</h3>
-      <p class="hint">Выберите автомат из списка, укажите ставку и нажмите «Крутить». Если все три барабана остановятся на одинаковом символе — вы выигрываете по таблице выплат этого автомата (она показана прямо под барабанами). Любая пара одинаковых символов даёт небольшой частичный возврат ставки.</p>
+      <h3 data-i18n="tut_slots_title">🎰 Слоты</h3>
+      <p class="hint" data-i18n="tut_slots_p1">Выберите автомат из списка, укажите ставку и нажмите «Крутить». Если все три барабана остановятся на одинаковом символе — вы выигрываете по таблице выплат этого автомата (она показана прямо под барабанами). Любая пара одинаковых символов даёт небольшой частичный возврат ставки.</p>
     </div>
 
     <div class="card-panel">
-      <h3>💣 Mines</h3>
-      <p class="hint">Выберите размер поля, количество мин и ставку. Открывайте клетки по одной — каждая безопасная клетка повышает множитель выигрыша. Забрать выигрыш можно в любой момент, но если откроете клетку с миной — раздача проиграна, ставка сгорает.</p>
+      <h3 data-i18n="tut_mines_title">💣 Mines</h3>
+      <p class="hint" data-i18n="tut_mines_p1">Выберите размер поля, количество мин и ставку. Открывайте клетки по одной — каждая безопасная клетка повышает множитель выигрыша. Забрать выигрыш можно в любой момент, но если откроете клетку с миной — раздача проиграна, ставка сгорает.</p>
     </div>
 
     <div class="card-panel">
-      <h3>🚀 Crash</h3>
-      <p class="hint">После старта раунда множитель начинает расти. Нажмите «Забрать сейчас», чтобы зафиксировать текущий множитель и получить выигрыш. Если не успеете нажать до момента краха — ставка сгорает. Чем дольше ждёте — тем выше потенциальный выигрыш, но и риск выше.</p>
+      <h3 data-i18n="tut_crash_title">🚀 Crash</h3>
+      <p class="hint" data-i18n="tut_crash_p1">После старта раунда множитель начинает расти. Нажмите «Забрать сейчас», чтобы зафиксировать текущий множитель и получить выигрыш. Если не успеете нажать до момента краха — ставка сгорает. Чем дольше ждёте — тем выше потенциальный выигрыш, но и риск выше.</p>
     </div>
 
     <div class="card-panel">
-      <h3>⚽ Ставки на спорт</h3>
-      <p class="hint">Администратор клуба публикует матчи с коэффициентами. Выберите исход, укажите ставку — если прогноз окажется верным, выигрыш зачислится автоматически после того, как администратор укажет результат матча.</p>
+      <h3 data-i18n="tut_sport_title">⚽ Ставки на спорт</h3>
+      <p class="hint" data-i18n="tut_sport_p1">Администратор клуба публикует матчи с коэффициентами. Выберите исход, укажите ставку — если прогноз окажется верным, выигрыш зачислится автоматически после того, как администратор укажет результат матча.</p>
     </div>
   </div>
 
@@ -880,6 +894,80 @@ let me = null; // {username, chips, isAdmin}
 let socket = null;
 let roomCode = "";
 
+/* ===================== ПЕРЕВОДЫ (RU / UZ) ===================== */
+let currentLang = localStorage.getItem('svara_lang') || 'ru';
+const I18N = {
+  ru: {
+    menu_lobby: 'Лобби', menu_slots: 'Слоты', menu_fastgames: 'Быстрые игры', menu_sport: 'Спорт',
+    menu_tutorial: 'Обучение', menu_rules: 'Правила клуба', menu_admin: 'Админка', menu_logout: 'Выход',
+    auth_login_tab: 'Вход', auth_register_tab: 'Регистрация', auth_username: 'Логин', auth_password: 'Пароль',
+    auth_login_btn: 'Войти', auth_register_btn: 'Зарегистрироваться',
+    auth_login_title: 'Вход в клуб', auth_register_title: 'Регистрация',
+    wallet_title: 'Ваш кошелёк', wallet_hint1: 'Нажмите на кошелёк, чтобы играть на бонусные или на купленные фишки. Игроки разных режимов не пересекаются за одним столом.',
+    wallet_rate: 'Курс: 100 фишек ≈ 1$',
+    tut_poker_title: '🃏 Как играть в Свару',
+    tut_poker_p1: 'Каждому игроку раздаётся по 3 карты. По кругу все делают ставки — сравнивают текущую ставку, поднимают её, либо пасуют. Когда все, кто остался в игре, сравняли ставки — карты открываются, и банк забирает тот, у кого рука сильнее.',
+    tut_poker_p2: '<b style="color:var(--gold);">Как считаются очки:</b> если у вас 2 или 3 карты одной масти — их очки складываются (валет/дама/король = 10, туз = 11, остальные — по номиналу). Если все три карты разных мастей — считается только одна, самая старшая из них.',
+    tut_poker_p3: '<b style="color:var(--gold);">Тройка тузов («Свара!»)</b> — единственная особая комбинация, она побеждает всегда, независимо от очков у соперников. Любая другая тройка одинаковых карт особого статуса не имеет и сравнивается по очкам как обычно.',
+    tut_poker_p4: '<b style="color:var(--gold);">Ничья:</b> если у нескольких игроков очки совпали — банк делится между ними поровну.',
+    tut_wallets_title: '💰 Бонусные и купленные фишки',
+    tut_wallets_p1: '<b style="color:var(--gold);">Бонусные</b> — фишки, которые вы получаете бесплатно при регистрации. Не связаны с реальными деньгами.',
+    tut_wallets_p2: '<b style="color:var(--gold);">Купленные</b> — фишки, которые начисляет администратор клуба вручную после оплаты.',
+    tut_wallets_p3: 'На главном экране нажмите на нужный кошелёк, чтобы переключить режим игры. Игроки в разных режимах никогда не пересекаются за одним столом.',
+    tut_slots_title: '🎰 Слоты',
+    tut_slots_p1: 'Выберите автомат из списка, укажите ставку и нажмите «Крутить». Если все три барабана остановятся на одинаковом символе — вы выигрываете по таблице выплат. Любая пара одинаковых символов даёт небольшой частичный возврат ставки.',
+    tut_mines_title: '💣 Mines',
+    tut_mines_p1: 'Выберите размер поля, количество мин и ставку. Открывайте клетки по одной — каждая безопасная клетка повышает множитель выигрыша. Забрать выигрыш можно в любой момент, но если откроете клетку с миной — раздача проиграна.',
+    tut_crash_title: '🚀 Crash',
+    tut_crash_p1: 'После старта раунда множитель начинает расти. Нажмите «Забрать сейчас», чтобы зафиксировать текущий множитель. Если не успеете нажать до момента краха — ставка сгорает.',
+    tut_sport_title: '⚽ Ставки на спорт',
+    tut_sport_p1: 'Администратор клуба публикует матчи с коэффициентами. Выберите исход, укажите ставку — выигрыш зачислится автоматически после того, как администратор укажет результат матча.'
+  },
+  uz: {
+    menu_lobby: 'Lobbi', menu_slots: 'Slotlar', menu_fastgames: 'Tezkor o‘yinlar', menu_sport: 'Sport',
+    menu_tutorial: 'Qo‘llanma', menu_rules: 'Klub qoidalari', menu_admin: 'Admin panel', menu_logout: 'Chiqish',
+    auth_login_tab: 'Kirish', auth_register_tab: 'Ro‘yxatdan o‘tish', auth_username: 'Login', auth_password: 'Parol',
+    auth_login_btn: 'Kirish', auth_register_btn: 'Ro‘yxatdan o‘tish',
+    auth_login_title: 'Klubga kirish', auth_register_title: 'Ro‘yxatdan o‘tish',
+    wallet_title: 'Sizning hamyoningiz', wallet_hint1: 'Bonus yoki sotib olingan fishkalarda o‘ynash uchun hamyonga bosing. Turli rejimdagi o‘yinchilar bir stolda uchrashmaydi.',
+    wallet_rate: 'Kurs: 100 fishka ≈ 1$',
+    tut_poker_title: '🃏 Svarada qanday o‘ynash kerak',
+    tut_poker_p1: 'Har bir o‘yinchiga 3 tadan qarta beriladi. Navbat bilan hamma stavka qiladi — joriy stavkani tenglashtiradi, oshiradi yoki pasga o‘tadi. O‘yinda qolganlarning hammasi stavkani tenglashtirgach — qartalar ochiladi va qo‘li kuchliroq bo‘lgan o‘yinchi bankni oladi.',
+    tut_poker_p2: '<b style="color:var(--gold);">Ochkolar qanday hisoblanadi:</b> agar sizda bir xil masdagi 2 yoki 3 ta qarta bo‘lsa — ularning ochkolari qo‘shiladi (valet/dama/king = 10, tuz = 11, qolganlari — o‘z qiymati bo‘yicha). Agar barcha uchta qarta turli mastdan bo‘lsa — faqat eng kattasi hisobga olinadi.',
+    tut_poker_p3: '<b style="color:var(--gold);">Uchta tuz («Svara!»)</b> — yagona maxsus kombinatsiya, u raqiblarning ochkosidan qat’i nazar har doim g‘alaba qozonadi. Boshqa har qanday bir xil uchlik maxsus maqomga ega emas va odatdagidek ochko bo‘yicha solishtiriladi.',
+    tut_poker_p4: '<b style="color:var(--gold);">Durrang:</b> agar bir nechta o‘yinchining ochkosi teng bo‘lsa — bank ular orasida teng bo‘linadi.',
+    tut_wallets_title: '💰 Bonus va sotib olingan fishkalar',
+    tut_wallets_p1: '<b style="color:var(--gold);">Bonus</b> — ro‘yxatdan o‘tganda bepul olinadigan fishkalar. Haqiqiy pul bilan bog‘liq emas.',
+    tut_wallets_p2: '<b style="color:var(--gold);">Sotib olingan</b> — to‘lovdan so‘ng klub administratori qo‘lda qo‘shadigan fishkalar.',
+    tut_wallets_p3: 'Bosh sahifada kerakli hamyonga bosib, o‘yin rejimini almashtiring. Turli rejimdagi o‘yinchilar hech qachon bir stolda uchrashmaydi.',
+    tut_slots_title: '🎰 Slotlar',
+    tut_slots_p1: 'Ro‘yxatdan avtomatni tanlang, stavkani kiriting va «Aylantirish»ni bosing. Agar uchala g‘ildirak ham bir xil belgida to‘xtasa — to‘lov jadvali bo‘yicha yutasiz. Har qanday bir xil juftlik stavkaning bir qismini qaytaradi.',
+    tut_mines_title: '💣 Mines',
+    tut_mines_p1: 'Maydon o‘lchami, minalar soni va stavkani tanlang. Katakchalarni birma-bir oching — har bir xavfsiz katak yutuq koeffitsientini oshiradi. Yutuqni istalgan vaqtda olishingiz mumkin, lekin minali katakni ochsangiz — o‘yin yutqaziladi.',
+    tut_crash_title: '🚀 Crash',
+    tut_crash_p1: 'Raund boshlangach, koeffitsient o‘sa boshlaydi. Joriy koeffitsientni qo‘lga kiritish uchun «Hozir olish»ni bosing. Halokat yuz berishidan oldin ulgurmasangiz — stavka kuyadi.',
+    tut_sport_title: '⚽ Sport stavkalari',
+    tut_sport_p1: 'Klub administratori koeffitsientlar bilan o‘yinlarni e’lon qiladi. Natijani tanlang, stavkani kiriting — administrator o‘yin natijasini kiritgach, yutuq avtomatik hisoblanadi.'
+  }
+};
+function t(key){ return (I18N[currentLang] && I18N[currentLang][key]) || I18N.ru[key] || key; }
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el=>{
+    el.innerHTML = t(el.dataset.i18n);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el=>{
+    el.placeholder = t(el.dataset.i18nPlaceholder);
+  });
+}
+function setLang(lang){
+  currentLang = lang;
+  localStorage.setItem('svara_lang', lang);
+  applyTranslations();
+  document.querySelectorAll('.lang-switch-btn').forEach(b=>{
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+}
+
 function showOnly(ids){
   ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','fastGamesPickerView','minesView','crashView','tutorialView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
@@ -919,6 +1007,9 @@ document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(
 document.getElementById('drwTutorial').addEventListener('click', ()=>{ closeDrawer(); showOnly(['topbar','tutorialView']); renderTopbar(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
 document.getElementById('drwLogout').addEventListener('click', ()=>{ closeDrawer(); logout(); });
+document.querySelectorAll('.lang-switch-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=> setLang(btn.dataset.lang));
+});
 
 function openCashierButton(idx){
   const btn = cashierButtons[idx];
@@ -1497,14 +1588,34 @@ let minesRevealedSet = new Set();
 async function enterMines(){
   showOnly(['topbar','minesView']);
   renderTopbar();
-  document.getElementById('minesSetup').style.display = '';
-  document.getElementById('minesGameArea').style.display = 'none';
   document.getElementById('minesResult').textContent = '';
   document.getElementById('minesSetupErr').textContent = '';
   const grid = document.getElementById('minesChipGrid');
   grid.innerHTML = FAST_BET_CHIPS.map(v => `<div class="chip-btn" data-chipfor="minesBetInput" data-val="${v}">${v}</div>`).join('');
   wireChipGrid('minesBetInput');
   await refreshMinesHistory();
+
+  // Проверяем, нет ли уже начатого раунда (например, обновили страницу
+  // посреди игры) — если есть, продолжаем именно его, а не показываем
+  // форму настройки заново.
+  let current;
+  try{ current = await api('/api/mines/current', 'GET'); }catch(e){ current = { active: false }; }
+  if(current.active){
+    minesRevealedSet = new Set(current.revealed);
+    buildMinesGrid(current.gridSize);
+    current.revealed.forEach(idx=>{
+      const tileEl = document.querySelector(`.mine-tile[data-idx="${idx}"]`);
+      if(tileEl){ tileEl.classList.add('revealed-safe'); tileEl.textContent = '💎'; }
+    });
+    document.getElementById('minesSetup').style.display = 'none';
+    document.getElementById('minesGameArea').style.display = '';
+    document.getElementById('minesCurrentMult').textContent = '×' + current.multiplier.toFixed(2);
+    document.getElementById('minesCurrentPayout').textContent = Math.round(current.bet * current.multiplier);
+    document.getElementById('minesCashoutBtn').style.display = '';
+  } else {
+    document.getElementById('minesSetup').style.display = '';
+    document.getElementById('minesGameArea').style.display = 'none';
+  }
 }
 
 document.getElementById('minesStartBtn').addEventListener('click', async ()=>{
@@ -1628,10 +1739,6 @@ async function enterCrash(){
   renderTopbar();
   stopCrashAnimation();
   crashRoundActive = false;
-  document.getElementById('crashSetup').style.display = '';
-  document.getElementById('crashCashoutBtn').style.display = 'none';
-  document.getElementById('crashMultiplierText').textContent = '×1.00';
-  document.getElementById('crashMultiplierText').className = 'crash-multiplier';
   document.getElementById('crashSetupErr').textContent = '';
   document.getElementById('crashResult').textContent = '';
   document.getElementById('crashPlane').style.transform = 'translate(0,0)';
@@ -1639,6 +1746,25 @@ async function enterCrash(){
   grid.innerHTML = FAST_BET_CHIPS.map(v => `<div class="chip-btn" data-chipfor="crashBetInput" data-val="${v}">${v}</div>`).join('');
   wireChipGrid('crashBetInput');
   await refreshCrashHistory();
+
+  // Проверяем, нет ли уже начатого раунда (обновили страницу посреди
+  // полёта) — если есть, продолжаем анимацию с реального момента времени.
+  let current;
+  try{ current = await api('/api/crash/current', 'GET'); }catch(e){ current = { active: false }; }
+  if(current.active){
+    crashGrowthRate = current.growthRate;
+    crashStartedAt = current.startedAt;
+    crashRoundActive = true;
+    document.getElementById('crashSetup').style.display = 'none';
+    document.getElementById('crashCashoutBtn').style.display = '';
+    document.getElementById('crashMultiplierText').className = 'crash-multiplier';
+    animateCrash();
+  } else {
+    document.getElementById('crashSetup').style.display = '';
+    document.getElementById('crashCashoutBtn').style.display = 'none';
+    document.getElementById('crashMultiplierText').textContent = '×1.00';
+    document.getElementById('crashMultiplierText').className = 'crash-multiplier';
+  }
 }
 
 document.getElementById('crashStartBtn').addEventListener('click', async ()=>{
@@ -2490,6 +2616,7 @@ window.addEventListener('appinstalled', () => {
 
 /* ===================== СТАРТ ===================== */
 (async function init(){
+  setLang(currentLang); // применяем сохранённый язык сразу, до входа
   if(!token){ showOnly(['authView']); return; }
   try{
     const data = await api('/api/me', 'GET');

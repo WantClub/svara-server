@@ -11,6 +11,7 @@
 const HOUSE_EDGE = 0.08; // отдача ~92%
 const MIN_GRID = 9;   // 3x3
 const MAX_GRID = 36;  // 6x6
+const MAX_ROUND_MS = 30 * 60 * 1000; // 30 минут — если раунд забыт (закрыл вкладку), не должен блокировать игрока навсегда
 
 // Простая проверка допустимости размера поля/числа мин.
 function validSetup(gridSize, minesCount) {
@@ -85,4 +86,11 @@ function cashOut(round) {
   return { ok: true, multiplier, payout: Math.round(round.bet * multiplier) };
 }
 
-module.exports = { HOUSE_EDGE, MIN_GRID, MAX_GRID, validSetup, createRound, revealTile, cashOut, multiplierAfter };
+// Раунд считается "забытым" (закрыл вкладку/обновил страницу и не вернулся),
+// если прошло слишком много времени — не должен блокировать новые раунды
+// навсегда без возможности его увидеть или забрать.
+function isExpired(round) {
+  return Date.now() - round.startedAt > MAX_ROUND_MS;
+}
+
+module.exports = { HOUSE_EDGE, MIN_GRID, MAX_GRID, MAX_ROUND_MS, validSetup, createRound, revealTile, cashOut, isExpired, multiplierAfter };
