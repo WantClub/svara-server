@@ -798,6 +798,13 @@
 
   <!-- ADMIN -->
   <div id="adminView" class="wide" style="display:none;">
+    <div class="tabbar" style="margin-bottom:16px;">
+      <div class="tabbtn active" data-admintab="users">Пользователи</div>
+      <div class="tabbtn" data-admintab="buttons">Кнопки</div>
+      <div class="tabbtn" data-admintab="tournaments">Турниры</div>
+    </div>
+
+    <div id="adminTabUsers">
     <div class="card-panel">
       <h3>Игроки клуба</h3>
       <div class="stat-row" id="adminStats"></div>
@@ -826,6 +833,9 @@
       <p class="hint">Гипотетическая цифра по всем столам сразу — сколько составил бы рейк, если бы он был. Ничего не удерживается у игроков.</p>
       <div class="stat-row" id="rakeStatRow"></div>
     </div>
+    </div>
+
+    <div id="adminTabButtons" style="display:none;">
     <div class="card-panel">
       <h3>Кнопки кассы</h3>
       <p class="hint">Текст и ссылка обеих кнопок кассы (в шапке сайта и в меню). Обе можно направить хоть на один и тот же Telegram-аккаунт.</p>
@@ -862,6 +872,9 @@
       <button class="btn secondary" id="saveWalletLabelsBtn" style="max-width:260px;">Сохранить</button>
       <div class="err" id="walletLabelsErr"></div>
     </div>
+    </div>
+
+    <div id="adminTabTournaments" style="display:none;">
     <div class="card-panel">
       <h3>🏆 Турниры — создать</h3>
       <p class="hint">Турнир может создать только владелец клуба. Столы формируются автоматически при запуске.</p>
@@ -890,6 +903,7 @@
     <div class="card-panel">
       <h3>Турниры — управление</h3>
       <div id="adminTournamentsList"></div>
+    </div>
     </div>
   </div>
 
@@ -2025,6 +2039,15 @@ async function enterAdmin(){
   loadWalletLabelsForm();
   refreshAdminTournaments();
 }
+document.querySelectorAll('[data-admintab]').forEach(t=>{
+  t.addEventListener('click', ()=>{
+    document.querySelectorAll('[data-admintab]').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active');
+    document.getElementById('adminTabUsers').style.display = t.dataset.admintab === 'users' ? '' : 'none';
+    document.getElementById('adminTabButtons').style.display = t.dataset.admintab === 'buttons' ? '' : 'none';
+    document.getElementById('adminTabTournaments').style.display = t.dataset.admintab === 'tournaments' ? '' : 'none';
+  });
+});
 async function loadCashierSettingsForm(){
   try{
     const data = await api('/api/cashier-buttons', 'GET');
