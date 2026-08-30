@@ -533,7 +533,6 @@
     </div>
     <div class="drawer-item" id="drwLobby"><span class="ic">🃏</span> <span data-i18n="menu_lobby">Свара • Тринка • Сека</span></div>
     <div class="drawer-item" id="drwTournaments"><span class="ic">🏆</span> Турниры Свара</div>
-    <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> <span data-i18n="menu_slots">Слоты</span></div>
     <div class="drawer-item" id="drwFastGames"><span class="ic">⚡</span> <span data-i18n="menu_fastgames">Быстрые игры</span></div>
     <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> <span data-i18n="menu_sport">Спорт</span></div>
     <div class="drawer-item" id="drwTutorial"><span class="ic">🎓</span> <span data-i18n="menu_tutorial">Обучение</span></div>
@@ -638,11 +637,6 @@
     </div>
 
     <div class="card-panel">
-      <h3 data-i18n="tut_slots_title">🎰 Слоты</h3>
-      <p class="hint" data-i18n="tut_slots_p1">Выберите автомат из списка, укажите ставку и нажмите «Крутить». Если все три барабана остановятся на одинаковом символе — вы выигрываете по таблице выплат этого автомата (она показана прямо под барабанами). Любая пара одинаковых символов даёт небольшой частичный возврат ставки.</p>
-    </div>
-
-    <div class="card-panel">
       <h3 data-i18n="tut_mines_title">💣 Mines</h3>
       <p class="hint" data-i18n="tut_mines_p1">Выберите размер поля, количество мин и ставку. Открывайте клетки по одной — каждая безопасная клетка повышает множитель выигрыша. Забрать выигрыш можно в любой момент, но если откроете клетку с миной — раздача проиграна, ставка сгорает.</p>
     </div>
@@ -658,46 +652,11 @@
     </div>
   </div>
 
-  <!-- SPORT -->
-  <!-- SLOTS -->
-  <!-- SLOTS: выбор автомата -->
-  <div id="slotsPickerView" class="wide" style="display:none;">
-    <div class="card-panel">
-      <h3>Слоты</h3>
-      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача у всех автоматов около 91% — как в обычном игровом автомате.</p>
-      <div class="slot-machines-grid" id="slotMachinesGrid"></div>
-    </div>
-  </div>
-
-  <div id="slotsView" class="limited" style="display:none;">
-    <div class="card-panel">
-      <div class="linklike" id="backToSlotsPicker" style="margin-bottom:10px;">← выбрать другой автомат</div>
-      <h3 id="slotMachineTitle">Слоты</h3>
-      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача около 91% — как в обычном игровом автомате.</p>
-      <div class="slot-machine machine-frame" id="slotMachineFrame">
-        <div class="win-particles" id="winParticles"></div>
-        <div class="reel-window"><div class="reel-strip" id="reelStrip1"><div class="sym">🍒</div></div></div>
-        <div class="reel-window"><div class="reel-strip" id="reelStrip2"><div class="sym">🍒</div></div></div>
-        <div class="reel-window"><div class="reel-strip" id="reelStrip3"><div class="sym">🍒</div></div></div>
-      </div>
-      <div class="slot-result" id="slotResult"></div>
-      <label>Ставка</label>
-      <div class="chip-grid" id="slotChipGrid"></div>
-      <input type="number" id="slotBetInput" value="50" min="1" step="10">
-      <button class="btn slot-spin-btn" id="slotSpinBtn" style="margin-top:14px;">🎰 Крутить</button>
-      <div class="paytable" id="slotPaytable"></div>
-    </div>
-    <div class="card-panel">
-      <h3>Последние спины</h3>
-      <div id="slotHistoryList"></div>
-    </div>
-  </div>
-
   <!-- FAST GAMES: выбор игры -->
   <div id="fastGamesPickerView" class="wide" style="display:none;">
     <div class="card-panel">
       <h3>Быстрые игры</h3>
-      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача ~92% — как и у слотов.</p>
+      <p class="hint">Игра на фишки клуба, без реальных денег. Средняя отдача ~92%.</p>
       <div class="slot-machines-grid">
         <div class="slot-machine-card" id="pickMinesCard" style="--slot-grad: linear-gradient(145deg, #1a3a1a, #041004);">
           <div class="symbols-row">💣 💎 💎</div>
@@ -823,10 +782,6 @@
       <button class="btn secondary" id="refreshAdminTablesBtn" style="max-width:220px;">Обновить список столов</button>
       <div id="adminTablesList" style="margin-top:12px;"></div>
       <div id="spectatePanel"></div>
-    </div>
-    <div class="card-panel">
-      <h3>Слоты — статистика</h3>
-      <div class="stat-row" id="slotsStatRow"></div>
     </div>
     <div class="card-panel">
       <h3>Покер — расчётный рейк по клубу</h3>
@@ -966,7 +921,7 @@ let roomCode = "";
 let currentLang = localStorage.getItem('svara_lang') || 'ru';
 const I18N = {
   ru: {
-    menu_lobby: 'Свара • Тринка • Сека', menu_slots: 'Слоты', menu_fastgames: 'Быстрые игры', menu_sport: 'Спорт',
+    menu_lobby: 'Свара • Тринка • Сека', menu_fastgames: 'Быстрые игры', menu_sport: 'Спорт',
     menu_tutorial: 'Обучение', menu_rules: 'Правила клуба', menu_admin: 'Админка', menu_logout: 'Выход',
     auth_login_tab: 'Вход', auth_register_tab: 'Регистрация', auth_username: 'Логин', auth_password: 'Пароль',
     auth_login_btn: 'Войти', auth_register_btn: 'Зарегистрироваться',
@@ -982,8 +937,6 @@ const I18N = {
     tut_wallets_p1: '<b style="color:var(--gold);">Бонусные</b> — фишки, которые вы получаете бесплатно при регистрации. Не связаны с реальными деньгами.',
     tut_wallets_p2: '<b style="color:var(--gold);">Купленные</b> — фишки, которые начисляет администратор клуба вручную после оплаты.',
     tut_wallets_p3: 'На главном экране нажмите на нужный кошелёк, чтобы переключить режим игры. Игроки в разных режимах никогда не пересекаются за одним столом.',
-    tut_slots_title: '🎰 Слоты',
-    tut_slots_p1: 'Выберите автомат из списка, укажите ставку и нажмите «Крутить». Если все три барабана остановятся на одинаковом символе — вы выигрываете по таблице выплат. Любая пара одинаковых символов даёт небольшой частичный возврат ставки.',
     tut_mines_title: '💣 Mines',
     tut_mines_p1: 'Выберите размер поля, количество мин и ставку. Открывайте клетки по одной — каждая безопасная клетка повышает множитель выигрыша. Забрать выигрыш можно в любой момент, но если откроете клетку с миной — раздача проиграна.',
     tut_crash_title: '🚀 Crash',
@@ -992,7 +945,7 @@ const I18N = {
     tut_sport_p1: 'Администратор клуба публикует матчи с коэффициентами. Выберите исход, укажите ставку — выигрыш зачислится автоматически после того, как администратор укажет результат матча.'
   },
   uz: {
-    menu_lobby: 'Lobbi', menu_slots: 'Slotlar', menu_fastgames: 'Tezkor o‘yinlar', menu_sport: 'Sport',
+    menu_lobby: 'Lobbi', menu_fastgames: 'Tezkor o‘yinlar', menu_sport: 'Sport',
     menu_tutorial: 'Qo‘llanma', menu_rules: 'Klub qoidalari', menu_admin: 'Admin panel', menu_logout: 'Chiqish',
     auth_login_tab: 'Kirish', auth_register_tab: 'Ro‘yxatdan o‘tish', auth_username: 'Login', auth_password: 'Parol',
     auth_login_btn: 'Kirish', auth_register_btn: 'Ro‘yxatdan o‘tish',
@@ -1008,8 +961,6 @@ const I18N = {
     tut_wallets_p1: '<b style="color:var(--gold);">Bonus</b> — ro‘yxatdan o‘tganda bepul olinadigan fishkalar. Haqiqiy pul bilan bog‘liq emas.',
     tut_wallets_p2: '<b style="color:var(--gold);">Sotib olingan</b> — to‘lovdan so‘ng klub administratori qo‘lda qo‘shadigan fishkalar.',
     tut_wallets_p3: 'Bosh sahifada kerakli hamyonga bosib, o‘yin rejimini almashtiring. Turli rejimdagi o‘yinchilar hech qachon bir stolda uchrashmaydi.',
-    tut_slots_title: '🎰 Slotlar',
-    tut_slots_p1: 'Ro‘yxatdan avtomatni tanlang, stavkani kiriting va «Aylantirish»ni bosing. Agar uchala g‘ildirak ham bir xil belgida to‘xtasa — to‘lov jadvali bo‘yicha yutasiz. Har qanday bir xil juftlik stavkaning bir qismini qaytaradi.',
     tut_mines_title: '💣 Mines',
     tut_mines_p1: 'Maydon o‘lchami, minalar soni va stavkani tanlang. Katakchalarni birma-bir oching — har bir xavfsiz katak yutuq koeffitsientini oshiradi. Yutuqni istalgan vaqtda olishingiz mumkin, lekin minali katakni ochsangiz — o‘yin yutqaziladi.',
     tut_crash_title: '🚀 Crash',
@@ -1037,7 +988,7 @@ function setLang(lang){
 }
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','fastGamesPickerView','minesView','crashView','tutorialView','tournamentsView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','fastGamesPickerView','minesView','crashView','tutorialView','tournamentsView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -1425,235 +1376,6 @@ async function refreshMyBets(){
   }).join('');
 }
 
-/* ===================== СЛОТЫ ===================== */
-const SLOT_BET_CHIPS = [10, 25, 50, 100, 250, 500];
-// Современные градиенты для каждой тематики — id должны совпадать с теми,
-// что возвращает сервер (slots.js -> MACHINES).
-const SLOT_MACHINE_STYLES = {
-  fruits:    'linear-gradient(145deg, #7a1f2b, #2c0d12)',
-  egypt:     'linear-gradient(145deg, #6b4a12, #241a05)',
-  space:     'linear-gradient(145deg, #1a1a5e, #05051a)',
-  ocean:     'linear-gradient(145deg, #0a4a5e, #021a22)',
-  gold:      'linear-gradient(145deg, #8a6a14, #2b2005)',
-  halloween: 'linear-gradient(145deg, #4a1a5e, #12040f)',
-  jungle:    'linear-gradient(145deg, #1a5e2a, #041a09)',
-  music:     'linear-gradient(145deg, #5e1a4a, #1a0512)',
-  dragons:   'linear-gradient(145deg, #5e0a1a, #150205)',
-  wildwest:  'linear-gradient(145deg, #6b451a, #1f1004)',
-};
-// Для остальных (сгенерированных) автоматов вручную прописывать цвет каждому
-// нереально — считаем градиент автоматически по хешу id, стабильно (один и
-// тот же автомат всегда получает один и тот же цвет между заходами).
-function slotGradientFor(id){
-  if(SLOT_MACHINE_STYLES[id]) return SLOT_MACHINE_STYLES[id];
-  // FNV-1a — простой, но с хорошим разбросом хеш (обычная линейная сумма
-  // давала почти одинаковый цвет для соседних id вида slot11/slot12).
-  let hash = 2166136261;
-  for(let i=0;i<id.length;i++){
-    hash ^= id.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  const hue = Math.abs(hash) % 360;
-  return `linear-gradient(145deg, hsl(${hue},58%,26%), hsl(${hue},70%,8%))`;
-}
-let slotMachinesCache = [];
-let slotPayoutsCache = [];
-let slotPairMultiplierCache = 0.65;
-let currentSlotMachineId = null;
-
-async function enterSlotsPicker(){
-  showOnly(['topbar','slotsPickerView']);
-  renderTopbar();
-  const grid = document.getElementById('slotMachinesGrid');
-  grid.innerHTML = '<div class="hint">Загрузка автоматов…</div>';
-  try{
-    const data = await api('/api/slots/machines', 'GET');
-    slotMachinesCache = data.machines;
-    slotPayoutsCache = data.payouts;
-    slotPairMultiplierCache = data.pairMultiplier;
-  }catch(e){
-    grid.innerHTML = `<div class="err">${e.message}</div>`;
-    return;
-  }
-  grid.innerHTML = slotMachinesCache.map(m => `
-    <div class="slot-machine-card" data-machine="${m.id}" style="--slot-grad:${slotGradientFor(m.id)};">
-      <div class="symbols-row">${m.symbols.slice(0,3).join(' ')}</div>
-      <h4>${m.name}</h4>
-      <span class="rtp-badge">отдача ~91%</span>
-      <div class="play-hint">▶ Играть</div>
-    </div>
-  `).join('');
-  grid.querySelectorAll('[data-machine]').forEach(card=>{
-    card.addEventListener('click', ()=> enterSlots(card.dataset.machine));
-  });
-}
-document.getElementById('drwSlots').addEventListener('click', ()=>{ closeDrawer(); enterSlotsPicker(); });
-document.getElementById('backToSlotsPicker').addEventListener('click', enterSlotsPicker);
-
-async function enterSlots(machineId){
-  currentSlotMachineId = machineId;
-  showOnly(['topbar','slotsView']);
-  renderTopbar();
-
-  if(!slotMachinesCache.length){
-    try{
-      const data = await api('/api/slots/machines', 'GET');
-      slotMachinesCache = data.machines;
-      slotPayoutsCache = data.payouts;
-      slotPairMultiplierCache = data.pairMultiplier;
-    }catch(e){}
-  }
-  const machine = slotMachinesCache.find(m => m.id === machineId) || slotMachinesCache[0];
-  if(machine){
-    document.getElementById('slotMachineTitle').textContent = machine.name;
-    [1,2,3].forEach(n => {
-      document.getElementById('reelStrip'+n).innerHTML = `<div class="sym">${machine.symbols[0]}</div>`;
-    });
-    const payLines = machine.symbols.map((s,i) => `${s}${s}${s} — <b>×${slotPayoutsCache[i]}</b>`);
-    document.getElementById('slotPaytable').innerHTML = `
-      <div>${payLines.slice(0,3).join(' &nbsp; ')}</div>
-      <div>${payLines.slice(3).join(' &nbsp; ')}</div>
-      <div>Любая пара одинаковых — <b>×${slotPairMultiplierCache}</b></div>
-    `;
-  }
-
-  const grid = document.getElementById('slotChipGrid');
-  grid.innerHTML = SLOT_BET_CHIPS.map(v => `<div class="chip-btn" data-chipfor="slotBetInput" data-val="${v}">${v}</div>`).join('');
-  wireChipGrid('slotBetInput');
-  document.getElementById('slotResult').textContent = '';
-  document.getElementById('slotResult').className = 'slot-result';
-  await refreshSlotHistory();
-}
-
-/* ===================== Звук (Web Audio, без файлов) ===================== */
-let slotAudioCtx = null;
-function getAudioCtx(){
-  if(!slotAudioCtx){
-    try{ slotAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); }catch(e){ return null; }
-  }
-  return slotAudioCtx;
-}
-function beep(freq, duration, delay, type, vol){
-  const ctx = getAudioCtx();
-  if(!ctx) return;
-  const t0 = ctx.currentTime + (delay||0);
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-  osc.type = type || 'sine';
-  osc.frequency.setValueAtTime(freq, t0);
-  gain.gain.setValueAtTime((vol||0.12), t0);
-  gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
-  osc.connect(gain); gain.connect(ctx.destination);
-  osc.start(t0); osc.stop(t0 + duration + 0.02);
-}
-function playReelStopSound(pitch){ beep(220 + pitch*70, 0.09, 0, 'square', 0.07); }
-function playWinSound(big){
-  const notes = big ? [523,659,784,1047,1319] : [523,659,784];
-  notes.forEach((f,i)=> beep(f, 0.22, i*0.09, 'triangle', 0.12));
-}
-function playLoseSound(){ beep(180, 0.25, 0, 'sawtooth', 0.05); }
-
-/* ===================== Прокрутка барабана (настоящая, с полосой символов) ===================== */
-function buildReelStripHtml(pool, finalSymbol, steps){
-  const seq = [];
-  for(let i=0;i<steps;i++){ seq.push(pool[Math.floor(Math.random()*pool.length)]); }
-  seq.push(finalSymbol);
-  return { html: seq.map(s=>`<div class="sym">${s}</div>`).join(''), count: seq.length };
-}
-function spinOneReel(reelIndex, pool, finalSymbol, duration){
-  return new Promise(resolve=>{
-    const strip = document.getElementById('reelStrip'+reelIndex);
-    const steps = 18 + reelIndex*4; // у дальних барабанов чуть длиннее полоса — красивее рассинхрон
-    const built = buildReelStripHtml(pool, finalSymbol, steps);
-    strip.style.transition = 'none';
-    strip.style.transform = 'translateY(0)';
-    strip.innerHTML = built.html;
-    // Небольшая пауза, чтобы браузер применил "transition:none" до старта анимации
-    requestAnimationFrame(()=>{
-      requestAnimationFrame(()=>{
-        strip.style.transition = `transform ${duration}ms cubic-bezier(.17,.89,.32,1.09)`;
-        strip.style.transform = `translateY(-${(built.count-1)*82}px)`;
-      });
-    });
-    setTimeout(()=>{ playReelStopSound(reelIndex); resolve(); }, duration);
-  });
-}
-function spawnWinParticles(count){
-  const host = document.getElementById('winParticles');
-  const glyphs = ['✨','⭐','💰','🪙'];
-  for(let i=0;i<count;i++){
-    const el = document.createElement('div');
-    el.className = 'win-particle';
-    el.textContent = glyphs[i % glyphs.length];
-    const angle = Math.random()*Math.PI*2;
-    const dist = 60 + Math.random()*70;
-    el.style.setProperty('--px', Math.cos(angle)*dist + 'px');
-    el.style.setProperty('--py', Math.sin(angle)*dist + 'px');
-    el.style.setProperty('--pr', (Math.random()*360-180) + 'deg');
-    el.style.left = (30 + Math.random()*40) + '%';
-    host.appendChild(el);
-    setTimeout(()=> el.remove(), 1000);
-  }
-}
-
-let slotSpinning = false;
-document.getElementById('slotSpinBtn').addEventListener('click', async ()=>{
-  if(slotSpinning) return;
-  const bet = parseInt(document.getElementById('slotBetInput').value) || 0;
-  const resultEl = document.getElementById('slotResult');
-  const btn = document.getElementById('slotSpinBtn');
-  const frame = document.getElementById('slotMachineFrame');
-  if(bet <= 0){ resultEl.textContent = 'Введите ставку.'; resultEl.className = 'slot-result'; return; }
-  if(bet > me.chips){ resultEl.textContent = `Недостаточно фишек. На балансе: ${me.chips}.`; resultEl.className = 'slot-result'; return; }
-
-  const machine = slotMachinesCache.find(m => m.id === currentSlotMachineId) || slotMachinesCache[0];
-  const pool = machine ? machine.symbols : ['🍒','🍋','🔔','⭐','💎','7️⃣'];
-
-  slotSpinning = true; btn.disabled = true;
-  frame.classList.remove('win-glow');
-  resultEl.textContent = 'Крутим…'; resultEl.className = 'slot-result';
-
-  let res;
-  try{ res = await api('/api/slots/spin', 'POST', {bet, machineId: currentSlotMachineId}); }
-  catch(e){
-    resultEl.textContent = e.message; slotSpinning = false; btn.disabled = false; return;
-  }
-
-  // Настоящая прокрутка — барабаны останавливаются по очереди (1-й быстрее,
-  // 3-й дольше всех), с нарастанием напряжения, как в реальном автомате.
-  await Promise.all([
-    spinOneReel(1, pool, res.reels[0], 900),
-    spinOneReel(2, pool, res.reels[1], 1250),
-    spinOneReel(3, pool, res.reels[2], 1650),
-  ]);
-
-  me.chips = res.chips;
-
-  if(res.payout > bet){
-    const bigWin = (res.payout - bet) >= bet*10;
-    resultEl.textContent = `Выигрыш! +${res.payout - bet} фишек`; resultEl.className = 'slot-result win';
-    frame.classList.add('win-glow');
-    spawnWinParticles(bigWin ? 16 : 8);
-    playWinSound(bigWin);
-    setTimeout(()=> frame.classList.remove('win-glow'), 1200);
-  }
-  else if(res.payout > 0){ resultEl.textContent = `Частичный возврат: ${res.payout} фишек`; resultEl.className = 'slot-result'; playWinSound(false); }
-  else { resultEl.textContent = 'Не повезло — попробуйте ещё раз.'; resultEl.className = 'slot-result lose'; playLoseSound(); }
-
-  await refreshSlotHistory();
-  slotSpinning = false; btn.disabled = false;
-});
-async function refreshSlotHistory(){
-  const el = document.getElementById('slotHistoryList');
-  let data;
-  try{ data = await api('/api/slots/myspins', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
-  if(!data.spins.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Спинов пока нет.</div>'; return; }
-  el.innerHTML = data.spins.map(s => {
-    const net = s.payout - s.bet;
-    const badge = net > 0 ? `<span class="pill active">+${net}</span>` : net === 0 ? `<span class="pill" style="background:rgba(198,161,91,0.1); color:var(--muted);">0</span>` : `<span class="pill banned">${net}</span>`;
-    return `<div class="open-room-row"><div>${s.r1}${s.r2}${s.r3}<div class="meta">ставка ${s.bet}</div></div>${badge}</div>`;
-  }).join('');
-}
 
 /* ===================== БЫСТРЫЕ ИГРЫ: общий пикер ===================== */
 const FAST_BET_CHIPS = [10, 25, 50, 100, 250, 500];
@@ -2033,7 +1755,6 @@ async function enterAdmin(){
   renderTopbar();
   await renderAdminUsers();
   refreshAdminTables();
-  refreshSlotsStats();
   refreshRakeStats();
   loadCashierSettingsForm();
   loadWalletLabelsForm();
@@ -2146,17 +1867,6 @@ async function refreshAdminTournaments(){
   });
 }
 
-async function refreshSlotsStats(){
-  const el = document.getElementById('slotsStatRow');
-  let data;
-  try{ data = await api('/api/admin/slots/stats', 'GET'); }catch(e){ return; }
-  el.innerHTML = `
-    <div class="stat-box"><div class="n">${data.spins}</div><div class="l">спинов всего</div></div>
-    <div class="stat-box"><div class="n">${data.wagered}</div><div class="l">поставлено фишек</div></div>
-    <div class="stat-box"><div class="n">${data.paid}</div><div class="l">выплачено фишек</div></div>
-    <div class="stat-box"><div class="n">${data.net}</div><div class="l">чистая разница</div></div>
-  `;
-}
 async function refreshRakeStats(){
   const el = document.getElementById('rakeStatRow');
   let data;
