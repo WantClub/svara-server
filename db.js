@@ -169,6 +169,29 @@ CREATE TABLE IF NOT EXISTS crash_rounds (
   payout INTEGER NOT NULL,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS tournaments (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  max_players INTEGER NOT NULL,
+  entry_fee INTEGER NOT NULL,
+  prize_pool INTEGER NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'bonus',
+  status TEXT NOT NULL DEFAULT 'registering',
+  created_by TEXT NOT NULL,
+  created_at INTEGER NOT NULL,
+  started_at INTEGER,
+  finished_at INTEGER
+);
+CREATE TABLE IF NOT EXISTS tournament_players (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  tournament_id INTEGER NOT NULL,
+  username TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'registered',
+  placement INTEGER,
+  prize INTEGER NOT NULL DEFAULT 0,
+  registered_at INTEGER NOT NULL,
+  eliminated_at INTEGER
+);
 `);
 
 // Миграция: какой именно слот-автомат использовался в спине (для тех, кто
@@ -178,6 +201,14 @@ try {
 } catch (e) {
   // колонка уже существует — это нормально
 }
+
+// Миграция: в каком режиме (бонусном/купленном) была сделана ставка/спин/
+// раунд — нужно, чтобы выигрыш возвращался в тот же кошелёк, из которого
+// была ставка, а не в тот, что у игрока активен прямо сейчас.
+try { db.exec("ALTER TABLE sport_bets ADD COLUMN mode TEXT NOT NULL DEFAULT 'bonus'"); } catch (e) {}
+try { db.exec("ALTER TABLE slot_spins ADD COLUMN mode TEXT NOT NULL DEFAULT 'bonus'"); } catch (e) {}
+try { db.exec("ALTER TABLE mines_rounds ADD COLUMN mode TEXT NOT NULL DEFAULT 'bonus'"); } catch (e) {}
+try { db.exec("ALTER TABLE crash_rounds ADD COLUMN mode TEXT NOT NULL DEFAULT 'bonus'"); } catch (e) {}
 
 module.exports = db;
 

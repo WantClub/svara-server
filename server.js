@@ -14,6 +14,7 @@ const game = require('./game');
 const slots = require('./slots');
 const mines = require('./mines');
 const crash = require('./crash');
+const tournamentLogic = require('./tournament');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const PORT = process.env.PORT || 3000;
@@ -599,6 +600,92 @@ app.get('/api/crash/myrounds', authMiddleware, (req, res) => {
   res.json({ rounds: rows });
 });
 
+// ===================== ТУРНИРЫ =====================
+// Создавать турниры может только администратор. Регистрация игроков и сам
+// список турниров хранятся в базе (не только в памяти) — регистрация может
+// идти часами/днями, и это не должно теряться при перезапуске сервера.
+app.post('/api/admin/tournaments', authMiddleware, adminMiddleware, (req, res) => {
+  const { name, maxPlayers, entryFee, prizePool, mode } = req.body || {};
+  const mp = parseInt(maxPlayers), fee = parseInt(entryFee), pool = parseInt(prizePool);
+  if (!name || typeof name !== 'string' || name.trim().length === 0 || name.length > 60) {
+    return res.status(400).json({ error: 'Название турнира: от 1 до 60 символов.' });
+  }
+  if (!Number.isInteger(mp) || mp < 2 || mp > 5000) return res.status(400).json({ error: 'Число участников: от 2 до 5000.' });
+  if (!Number.isFinite(fee) || fee < 0) return res.status(400).json({ error: 'Некорректный стартовый взнос.' });
+  if (!Number.isFinite(pool) || pool < 0) return res.status(400).json({ error: 'Некорректный призовой фонд.' });
+  const tourMode = mode === 'real' ? 'real' : 'bonus';
+
+  const result = db.prepare('INSERT INTO tournaments (name, max_players, entry_fee, prize_pool, mode, status, created_by, created_at) VALUES (?,?,?,?,?,?,?,?)')
+    .run(name.trim(), mp, fee, pool, tourMode, 'registering', req.dbUser.username, Date.now());
+  res.json({ ok: true, id: result.lastInsertRowid });
+});
+
+app.get('/api/admin/tournaments', authMiddleware, adminMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM tournaments ORDER BY created_at DESC LIMIT 100').all();
+  const withCounts = rows.map(t => ({
+    ...t,
+    registeredCount: db.prepare('SELECT COUNT(*) as n FROM tournament_players WHERE tournament_id = ? AND status != ?').get(t.id, 'unregistered').n
+  }));
+  res.json({ tournaments: withCounts });
+});
+
+app.get('/api/tournaments', authMiddleware, (req, res) => {
+  const user = req.dbUser;
+  const rows = db.prepare("SELECT * FROM tournaments WHERE status = 'registering' AND mode = ? ORDER BY created_at DESC").all(user.active_mode);
+  const withCounts = rows.map(t => ({
+    ...t,
+    registeredCount: db.prepare("SELECT COUNT(*) as n FROM tournament_players WHERE tournament_id = ? AND status != 'unregistered'").get(t.id).n,
+    iAmRegistered: !!db.prepare("SELECT 1 FROM tournament_players WHERE tournament_id = ? AND username = ? COLLATE NOCASE AND status != 'unregistered'").get(t.id, user.username)
+  }));
+  res.json({ tournaments: withCounts });
+});
+
+app.post('/api/tournaments/:id/register', authMiddleware, (req, res) => {
+  const tid = parseInt(req.params.id);
+  const tour = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(tid);
+  if (!tour) return res.status(404).json({ error: 'Турнир не найден.' });
+  if (tour.status !== 'registering') return res.status(400).json({ error: 'Регистрация на этот турнир уже закрыта.' });
+
+  const user = getUserByUsername(req.dbUser.username);
+  if (user.active_mode !== tour.mode) {
+    return res.status(400).json({ error: `Этот турнир на ${tour.mode === 'real' ? 'купленных' : 'бонусных'} фишках — переключите режим.` });
+  }
+  const already = db.prepare("SELECT 1 FROM tournament_players WHERE tournament_id = ? AND username = ? COLLATE NOCASE AND status != 'unregistered'").get(tid, user.username);
+  if (already) return res.status(400).json({ error: 'Вы уже зарегистрированы в этом турнире.' });
+
+  const count = db.prepare("SELECT COUNT(*) as n FROM tournament_players WHERE tournament_id = ? AND status != 'unregistered'").get(tid).n;
+  if (count >= tour.max_players) return res.status(400).json({ error: 'Турнир уже набрал максимум участников.' });
+
+  const wf = activeWalletField(user);
+  const balance = activeBalance(user);
+  if (tour.entry_fee > balance) return res.status(400).json({ error: `Недостаточно фишек для взноса. Нужно: ${tour.entry_fee}, на балансе: ${balance}.` });
+
+  db.prepare(`UPDATE users SET ${wf} = ${wf} - ? WHERE username = ?`).run(tour.entry_fee, user.username);
+  db.prepare('INSERT INTO tournament_players (tournament_id, username, status, registered_at) VALUES (?,?,?,?)')
+    .run(tid, user.username, 'registered', Date.now());
+
+  const updated = getUserByUsername(user.username);
+  res.json({ ok: true, chips: activeBalance(updated) });
+});
+
+app.post('/api/tournaments/:id/unregister', authMiddleware, (req, res) => {
+  const tid = parseInt(req.params.id);
+  const tour = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(tid);
+  if (!tour) return res.status(404).json({ error: 'Турнир не найден.' });
+  if (tour.status !== 'registering') return res.status(400).json({ error: 'Турнир уже начался — выйти из регистрации нельзя.' });
+
+  const reg = db.prepare("SELECT * FROM tournament_players WHERE tournament_id = ? AND username = ? COLLATE NOCASE AND status != 'unregistered'").get(tid, req.dbUser.username);
+  if (!reg) return res.status(400).json({ error: 'Вы не зарегистрированы в этом турнире.' });
+
+  const user = getUserByUsername(req.dbUser.username);
+  const wf = tour.mode === 'real' ? 'chips_real' : 'chips_bonus';
+  db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ?`).run(tour.entry_fee, user.username);
+  db.prepare("UPDATE tournament_players SET status = 'unregistered' WHERE id = ?").run(reg.id);
+
+  const updated = getUserByUsername(req.dbUser.username);
+  res.json({ ok: true, chips: activeBalance(updated) });
+});
+
 app.get('/api/admin/slots/stats', authMiddleware, adminMiddleware, (req, res) => {
   const row = db.prepare('SELECT COUNT(*) as spins, COALESCE(SUM(bet),0) as wagered, COALESCE(SUM(payout),0) as paid FROM slot_spins').get();
   res.json({ spins: row.spins, wagered: row.wagered, paid: row.paid, net: row.wagered - row.paid });
@@ -686,6 +773,8 @@ app.get('/api/admin/rake-stats', authMiddleware, adminMiddleware, (req, res) => 
 // ===================== ИГРОВЫЕ КОМНАТЫ (в памяти сервера) =====================
 const rooms = new Map();        // code -> room object (game.js), + seats[i].socketId
 const socketMeta = new Map();   // socket.id -> { username, roomCode }
+const tournaments = new Map();  // id -> runtime-состояние турнира (tournament.js)
+const usernameSockets = new Map(); // username -> Set(socket.id) — чтобы слать личные уведомления вне стола
 
 function genCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -845,21 +934,162 @@ function scheduleAutoNextHand(room) {
     if (!fresh || fresh.phase !== 'handEnd') return;
     const result = game.nextHandReset(fresh);
     if (result.ok) {
-      // Игроки, у которых закончились фишки, больше не могут играть дальше —
-      // нет смысла держать за ними место, пока за столом ждут другие. Перед
-      // следующей раздачей автоматически освобождаем их места.
+      // Игроки, у которых закончились фишки, больше не могут играть дальше.
+      // На обычном столе — просто возвращаем в кошелёк и освобождаем место.
+      // На турнирном столе — это ВЫБЫВАНИЕ из турнира (взнос не возвращается,
+      // он уже был частью призового фонда).
       fresh.seats.forEach((s, idx) => {
         if (s && s.chips <= 0) {
-          fresh.log.push(`${s.username} автоматически встал(а) из-за стола — закончились фишки.`);
-          cashOutSeat(fresh, idx);
+          if (fresh.tournamentId) {
+            handleTournamentElimination(fresh, idx);
+          } else {
+            fresh.log.push(`${s.username} автоматически встал(а) из-за стола — закончились фишки.`);
+            cashOutSeat(fresh, idx);
+          }
         }
       });
+      if (fresh.tournamentId) maybeBalanceOrFinishTournament(fresh.tournamentId);
       tryAutoDeal(fresh);
       broadcastRoom(fresh.code);
       broadcastLobby();
     }
   }, AUTO_NEXT_HAND_DELAY);
 }
+
+// ===================== ТУРНИРЫ: логика во время игры =====================
+function emitToUser(username, event, payload) {
+  const ids = usernameSockets.get(username);
+  if (!ids) return;
+  ids.forEach(sid => io.to(sid).emit(event, payload));
+}
+
+// Игрок вышел без фишек за турнирным столом — это выбывание из турнира,
+// а не обычная пересадка. Взнос не возвращается (он часть призового фонда).
+function handleTournamentElimination(room, idx) {
+  const s = room.seats[idx];
+  if (!s) return;
+  const tour = tournaments.get(room.tournamentId);
+  if (tour) {
+    tour.eliminationOrder.push(s.username);
+    emitToUser(s.username, 'tournament:eliminated', { tournamentId: room.tournamentId, tournamentName: tour.name });
+  }
+  room.log.push(`${s.username} выбывает из турнира — закончились фишки.`);
+  room.seats[idx] = null;
+}
+
+function tournamentTablesOf(tournamentId) {
+  return Array.from(rooms.values()).filter(r => r.tournamentId === tournamentId);
+}
+
+// После каждого выбывания проверяем: не пора ли объявить победителя, и не
+// нужно ли "слить" опустевший стол с другим, чтобы у всех остававшихся
+// игроков было с кем играть (за столом нужно минимум 2 человека).
+function maybeBalanceOrFinishTournament(tournamentId) {
+  const tour = tournaments.get(tournamentId);
+  if (!tour) return;
+  const tables = tournamentTablesOf(tournamentId);
+  const allActive = [];
+  tables.forEach(t => t.seats.forEach(s => { if (s) allActive.push({ room: t, seat: s }); }));
+
+  if (allActive.length <= 1) {
+    finishTournament(tournamentId, allActive[0] ? allActive[0].seat.username : null);
+    return;
+  }
+
+  // Стол с ровно одним оставшимся игроком не может продолжать раздачу —
+  // переносим этого игрока на любой другой турнирный стол с местом.
+  tables.forEach(table => {
+    const filled = table.seats.filter(Boolean);
+    if (filled.length === 1) {
+      const lonelyIdx = table.seats.findIndex(Boolean);
+      const lonelySeat = table.seats[lonelyIdx];
+      const target = tables.find(t => t.code !== table.code && t.seats.some(s => !s));
+      if (target) {
+        const targetIdx = target.seats.findIndex(s => !s);
+        target.seats[targetIdx] = lonelySeat;
+        target.log.push(`${lonelySeat.username} пересажен(а) с другого стола (слияние турнирных столов).`);
+        table.seats[lonelyIdx] = null;
+        emitToUser(lonelySeat.username, 'tournament:moved', { tournamentId, newCode: target.code });
+        tryAutoDeal(target);
+        broadcastRoom(target.code);
+        // Опустевший стол больше не нужен — убираем его из активных.
+        rooms.delete(table.code);
+        broadcastLobby();
+      }
+    }
+  });
+}
+
+function finishTournament(tournamentId, winnerUsername) {
+  const tour = tournaments.get(tournamentId);
+  if (!tour || tour.status === 'finished') return;
+  if (winnerUsername) tour.eliminationOrder.push(winnerUsername);
+  tour.status = 'finished';
+
+  const prizes = tournamentLogic.computePrizes(tour);
+  const wf = tour.mode === 'real' ? 'chips_real' : 'chips_bonus';
+  prizes.forEach(p => {
+    if (p.prize > 0) {
+      db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ? COLLATE NOCASE`).run(p.prize, p.username);
+    }
+    db.prepare('UPDATE tournament_players SET status = ?, placement = ?, prize = ?, eliminated_at = ? WHERE tournament_id = ? AND username = ? COLLATE NOCASE')
+      .run('finished', p.placement, p.prize, Date.now(), tournamentId, p.username);
+    emitToUser(p.username, 'tournament:finished', { tournamentId, tournamentName: tour.name, placement: p.placement, prize: p.prize });
+  });
+
+  db.prepare("UPDATE tournaments SET status = 'finished', finished_at = ? WHERE id = ?").run(Date.now(), tournamentId);
+
+  // Закрываем все ещё оставшиеся турнирные столы.
+  tournamentTablesOf(tournamentId).forEach(t => rooms.delete(t.code));
+  tournaments.delete(tournamentId);
+  broadcastLobby();
+}
+
+function startTournamentNow(tournamentId) {
+  const tourRow = db.prepare('SELECT * FROM tournaments WHERE id = ?').get(tournamentId);
+  if (!tourRow) return { ok: false, error: 'Турнир не найден.' };
+  if (tourRow.status !== 'registering') return { ok: false, error: 'Турнир уже запущен или завершён.' };
+
+  const regs = db.prepare("SELECT username FROM tournament_players WHERE tournament_id = ? AND status != 'unregistered'").all(tournamentId);
+  if (regs.length < 2) return { ok: false, error: 'Нужно минимум 2 зарегистрированных участника, чтобы начать турнир.' };
+
+  const tour = tournamentLogic.createTournament(tournamentId, {
+    name: tourRow.name, maxPlayers: tourRow.max_players, entryFee: tourRow.entry_fee,
+    prizePool: tourRow.prize_pool, mode: tourRow.mode, createdBy: tourRow.created_by
+  });
+  tour.players = regs.map(r => ({ username: r.username }));
+  tour.anteLevelStartedAt = Date.now();
+  tournaments.set(tournamentId, tour);
+
+  const groups = tournamentLogic.splitIntoTables(tour);
+  groups.forEach(group => {
+    const code = genCode();
+    const ante = tournamentLogic.currentAnte(tour);
+    const room = game.createRoom(code, ante, group[0], group.length);
+    room.tournamentId = tournamentId;
+    room.mode = tour.mode;
+    group.forEach((username, i) => {
+      const u = getUserByUsername(username);
+      room.seats[i] = {
+        username, avatar: u ? u.avatar : null, chips: tournamentLogic.STARTING_STACK,
+        hand: [], folded: false, inHand: false, betThisRound: 0, hasActed: false, consecutiveTimeouts: 0, socketId: null
+      };
+      emitToUser(username, 'tournament:started', { tournamentId, tournamentName: tourRow.name, tableCode: code });
+    });
+    rooms.set(code, room);
+    tryAutoDeal(room);
+  });
+
+  db.prepare("UPDATE tournaments SET status = 'running', started_at = ? WHERE id = ?").run(Date.now(), tournamentId);
+  broadcastLobby();
+  return { ok: true, tables: groups.length };
+}
+
+app.post('/api/admin/tournaments/:id/start', authMiddleware, adminMiddleware, (req, res) => {
+  const result = startTournamentNow(parseInt(req.params.id));
+  if (!result.ok) return res.status(400).json({ error: result.error });
+  res.json(result);
+});
 
 // ===================== SOCKET.IO AUTH =====================
 io.use((socket, next) => {
@@ -888,6 +1118,8 @@ function removeSpectator(socketId) {
 
 io.on('connection', (socket) => {
   socketMeta.set(socket.id, { username: socket.username, roomCode: null });
+  if (!usernameSockets.has(socket.username)) usernameSockets.set(socket.username, new Set());
+  usernameSockets.get(socket.username).add(socket.id);
 
   socket.on('lobby:join', () => {
     socket.join('lobby');
@@ -895,6 +1127,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('table:create', ({ betUnit, maxSeats }, cb) => {
+    cb = typeof cb === 'function' ? cb : () => {}; // защита: не даём кривому клиенту без callback уронить весь сервер
     const bu = Math.max(5, parseInt(betUnit) || 20);
     const seatCount = [2, 3, 4, 5, 6].includes(parseInt(maxSeats)) ? parseInt(maxSeats) : 6;
     const user = getUserByUsername(socket.username);
@@ -926,6 +1159,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('table:join', ({ code }, cb) => {
+    cb = typeof cb === 'function' ? cb : () => {}; // защита: не даём кривому клиенту без callback уронить весь сервер
     const room = rooms.get(code);
     if (!room) return cb({ ok: false, error: 'Стол не найден.' });
 
@@ -977,6 +1211,7 @@ io.on('connection', (socket) => {
   }
 
   socket.on('table:action', ({ type, amount }, cb) => {
+    cb = typeof cb === 'function' ? cb : () => {}; // защита: не даём кривому клиенту без callback уронить весь сервер
     const meta = socketMeta.get(socket.id);
     const room = meta && rooms.get(meta.roomCode);
     if (!room) return cb && cb({ ok: false, error: 'Вы не за столом.' });
@@ -1016,6 +1251,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('admin:spectate', ({ code }, cb) => {
+    cb = typeof cb === 'function' ? cb : () => {}; // защита: не даём кривому клиенту без callback уронить весь сервер
     if (!socket.isAdmin) return cb && cb({ ok: false, error: 'Только для администратора.' });
     const room = rooms.get(code);
     if (!room) return cb && cb({ ok: false, error: 'Стол не найден.' });
@@ -1033,6 +1269,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('table:chat', (text, cb) => {
+    cb = typeof cb === 'function' ? cb : () => {}; // защита: не даём кривому клиенту без callback уронить весь сервер
     const meta = socketMeta.get(socket.id);
     const room = meta && rooms.get(meta.roomCode);
     if (!room) return cb && cb({ ok: false, error: 'Вы не за столом.' });
@@ -1048,9 +1285,21 @@ io.on('connection', (socket) => {
   });
 
   socket.on('table:leave', (cb) => {
+    cb = typeof cb === 'function' ? cb : () => {}; // защита: не даём кривому клиенту без callback уронить весь сервер
     const meta = socketMeta.get(socket.id);
     const room = meta && rooms.get(meta.roomCode);
     if (room) {
+      // Из турнирного стола выйти по своей воле нельзя — досрочный выход
+      // считался бы бесплатным способом не проигрывать взнос. Игрок либо
+      // играет до выбывания, либо просто закрывает вкладку (это не
+      // засчитывается как выход, место останется, а бот-таймер спасует за
+      // него в свой черёд, как за любого неактивного игрока).
+      if (room.tournamentId) {
+        socket.leave('table:' + room.code);
+        socketMeta.set(socket.id, { username: socket.username, roomCode: null });
+        if (cb) cb({ ok: false, error: 'Из турнирного стола нельзя выйти досрочно — просто закройте вкладку, за вас будут пасовать автоматически.' });
+        return;
+      }
       const idx = room.seats.findIndex(s => s && s.username === socket.username);
       if (idx >= 0) {
         // Если игрок уходит посреди активной раздачи, будучи ещё "в игре"
@@ -1090,6 +1339,8 @@ io.on('connection', (socket) => {
     }
     removeSpectator(socket.id);
     socketMeta.delete(socket.id);
+    const set = usernameSockets.get(socket.username);
+    if (set) { set.delete(socket.id); if (set.size === 0) usernameSockets.delete(socket.username); }
   });
 });
 
