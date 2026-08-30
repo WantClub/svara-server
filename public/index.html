@@ -91,6 +91,21 @@
   .open-room-row{display:flex; justify-content:space-between; align-items:center; background:var(--surface); border:1px solid var(--panel-line); border-radius:7px; padding:9px 12px; margin-bottom:7px; font-size:13px;}
   .open-room-row .meta{color:var(--muted); font-size:11.5px;}
 
+  .tournament-card{
+    background:linear-gradient(160deg, rgba(198,161,91,0.08), transparent 60%), var(--surface);
+    border:1px solid var(--gold-dim); border-radius:12px; padding:16px; margin-bottom:12px;
+  }
+  .tournament-card h4{margin:0 0 8px; font-family:var(--font-display); font-size:15px; color:var(--gold);}
+  .tournament-card .t-stats{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--ivory); margin-bottom:12px;}
+  .tournament-card .t-stats b{color:var(--gold); font-family:var(--font-mono);}
+  .tournament-card .t-status{
+    display:inline-block; font-size:10.5px; text-transform:uppercase; letter-spacing:0.05em;
+    padding:2px 8px; border-radius:10px; margin-bottom:8px;
+  }
+  .t-status.registering{ background:rgba(31,122,77,0.18); color:var(--green); }
+  .t-status.running{ background:rgba(198,161,91,0.18); color:var(--gold); }
+  .t-status.finished{ background:rgba(255,255,255,0.08); color:var(--muted); }
+
   /* ===== Вкладки лобби ===== */
   .lobby-tabs{display:flex; gap:8px; flex-wrap:wrap;}
   .lobby-tab{
@@ -519,6 +534,7 @@
     <div class="drawer-item" id="drwLobby"><span class="ic">🏠</span> <span data-i18n="menu_lobby">Лобби</span></div>
     <div class="drawer-item" id="drwSlots"><span class="ic">🎰</span> <span data-i18n="menu_slots">Слоты</span></div>
     <div class="drawer-item" id="drwFastGames"><span class="ic">⚡</span> <span data-i18n="menu_fastgames">Быстрые игры</span></div>
+    <div class="drawer-item" id="drwTournaments"><span class="ic">🏆</span> Турниры</div>
     <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> <span data-i18n="menu_sport">Спорт</span></div>
     <div class="drawer-item" id="drwTutorial"><span class="ic">🎓</span> <span data-i18n="menu_tutorial">Обучение</span></div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> <span data-i18n="menu_rules">Правила клуба</span></div>
@@ -592,6 +608,15 @@
       <input type="text" id="joinCodeInput" maxlength="6" placeholder="Код стола" style="text-transform:uppercase;">
       <button class="btn secondary" id="joinByCodeBtn">Присоединиться</button>
       <div class="err" id="dashErr"></div>
+    </div>
+  </div>
+
+  <!-- ТУРНИРЫ -->
+  <div id="tournamentsView" class="wide" style="display:none;">
+    <div class="card-panel">
+      <h3>🏆 Турниры</h3>
+      <p class="hint">Регистрация на турнир списывает взнос сразу. Столы формируются автоматически, когда администратор запускает турнир. Взнос не возвращается при выбывании — он часть призового фонда.</p>
+      <div id="tournamentsList"></div>
     </div>
   </div>
 
@@ -837,6 +862,35 @@
       <button class="btn secondary" id="saveWalletLabelsBtn" style="max-width:260px;">Сохранить</button>
       <div class="err" id="walletLabelsErr"></div>
     </div>
+    <div class="card-panel">
+      <h3>🏆 Турниры — создать</h3>
+      <p class="hint">Турнир может создать только владелец клуба. Столы формируются автоматически при запуске.</p>
+      <label>Название турнира</label>
+      <input type="text" id="tourNameInput" maxlength="60" placeholder="Пятничный турнир">
+      <div class="row2">
+        <div>
+          <label>Максимум участников</label>
+          <input type="number" id="tourMaxPlayersInput" value="12" min="2" max="5000" step="1">
+        </div>
+        <div>
+          <label>Стартовый взнос</label>
+          <input type="number" id="tourEntryFeeInput" value="100" min="0" step="10">
+        </div>
+      </div>
+      <label style="margin-top:10px;">Призовой фонд</label>
+      <input type="number" id="tourPrizePoolInput" value="1000" min="0" step="10">
+      <label style="margin-top:10px;">Режим</label>
+      <select id="tourModeInput">
+        <option value="bonus">Бонусные фишки</option>
+        <option value="real">Купленные фишки</option>
+      </select>
+      <button class="btn" id="tourCreateBtn" style="margin-top:14px;">Создать турнир</button>
+      <div class="err" id="tourCreateErr"></div>
+    </div>
+    <div class="card-panel">
+      <h3>Турниры — управление</h3>
+      <div id="adminTournamentsList"></div>
+    </div>
   </div>
 
   <!-- TABLE -->
@@ -969,7 +1023,7 @@ function setLang(lang){
 }
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','fastGamesPickerView','minesView','crashView','tutorialView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','sportView','slotsView','slotsPickerView','fastGamesPickerView','minesView','crashView','tutorialView','tournamentsView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -1110,6 +1164,26 @@ function connectSocket(){
   socket.on('table:kicked', (data) => {
     roomCode = "";
     alert(data.message || 'Вы встали из-за стола.');
+    enterDashboard();
+  });
+  socket.on('tournament:started', (data) => {
+    alert(`Турнир «${data.tournamentName}» начался! Вы за столом.`);
+    joinTableDirect(data.tableCode);
+  });
+  socket.on('tournament:moved', (data) => {
+    alert(`Ваш стол объединён с другим — турнир продолжается.`);
+    joinTableDirect(data.newCode);
+  });
+  socket.on('tournament:eliminated', (data) => {
+    alert(`Вы выбыли из турнира «${data.tournamentName}».`);
+  });
+  socket.on('tournament:finished', (data) => {
+    if(data.prize > 0){
+      alert(`Турнир «${data.tournamentName}» завершён! Ваше место: ${data.placement}. Выигрыш: ${data.prize} фишек.`);
+    } else {
+      alert(`Турнир «${data.tournamentName}» завершён. Ваше место: ${data.placement}.`);
+    }
+    roomCode = "";
     enterDashboard();
   });
 }
@@ -1571,6 +1645,44 @@ async function refreshSlotHistory(){
 const FAST_BET_CHIPS = [10, 25, 50, 100, 250, 500];
 
 document.getElementById('drwFastGames').addEventListener('click', ()=>{ closeDrawer(); enterFastGamesPicker(); });
+document.getElementById('drwTournaments').addEventListener('click', ()=>{ closeDrawer(); enterTournaments(); });
+
+/* ===================== ТУРНИРЫ ===================== */
+async function enterTournaments(){
+  showOnly(['topbar','tournamentsView']);
+  renderTopbar();
+  await refreshTournamentsList();
+}
+async function refreshTournamentsList(){
+  const el = document.getElementById('tournamentsList');
+  let data;
+  try{ data = await api('/api/tournaments', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.tournaments.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Открытых турниров пока нет.</div>'; return; }
+  el.innerHTML = data.tournaments.map(t => `
+    <div class="tournament-card">
+      <span class="t-status registering">Регистрация открыта</span>
+      <h4>${t.name}</h4>
+      <div class="t-stats">
+        <div>Взнос: <b>${t.entry_fee}</b></div>
+        <div>Приз. фонд: <b>${t.prize_pool}</b></div>
+        <div>Участников: <b>${t.registeredCount} / ${t.max_players}</b></div>
+      </div>
+      <button class="btn ${t.iAmRegistered?'secondary':''}" data-tid="${t.id}" data-act="${t.iAmRegistered?'unreg':'reg'}" style="margin-top:0;">
+        ${t.iAmRegistered ? 'Отменить регистрацию' : 'Зарегистрироваться'}
+      </button>
+    </div>
+  `).join('');
+  el.querySelectorAll('button[data-tid]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const tid = btn.dataset.tid, act = btn.dataset.act;
+      try{
+        const res = await api(`/api/tournaments/${tid}/${act === 'reg' ? 'register' : 'unregister'}`, 'POST');
+        me.chips = res.chips;
+        await refreshTournamentsList();
+      }catch(e){ alert(e.message); }
+    });
+  });
+}
 function enterFastGamesPicker(){
   stopCrashAnimation();
   showOnly(['topbar','fastGamesPickerView']);
@@ -1911,6 +2023,7 @@ async function enterAdmin(){
   refreshRakeStats();
   loadCashierSettingsForm();
   loadWalletLabelsForm();
+  refreshAdminTournaments();
 }
 async function loadCashierSettingsForm(){
   try{
@@ -1960,6 +2073,56 @@ document.getElementById('saveWalletLabelsBtn').addEventListener('click', async (
     errEl.textContent = e.message;
   }
 });
+
+document.getElementById('tourCreateBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('tourCreateErr'); errEl.textContent = '';
+  const name = document.getElementById('tourNameInput').value;
+  const maxPlayers = parseInt(document.getElementById('tourMaxPlayersInput').value);
+  const entryFee = parseInt(document.getElementById('tourEntryFeeInput').value);
+  const prizePool = parseInt(document.getElementById('tourPrizePoolInput').value);
+  const mode = document.getElementById('tourModeInput').value;
+  try{
+    await api('/api/admin/tournaments', 'POST', { name, maxPlayers, entryFee, prizePool, mode });
+    document.getElementById('tourNameInput').value = '';
+    errEl.style.color = 'var(--green)';
+    errEl.textContent = 'Турнир создан!';
+    setTimeout(()=>{ errEl.textContent = ''; errEl.style.color = ''; }, 2000);
+    await refreshAdminTournaments();
+  }catch(e){
+    errEl.style.color = '';
+    errEl.textContent = e.message;
+  }
+});
+
+const TOUR_STATUS_LABEL = { registering: 'Регистрация открыта', running: 'Идёт', finished: 'Завершён' };
+async function refreshAdminTournaments(){
+  const el = document.getElementById('adminTournamentsList');
+  let data;
+  try{ data = await api('/api/admin/tournaments', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.tournaments.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Турниров пока нет.</div>'; return; }
+  el.innerHTML = data.tournaments.map(t => `
+    <div class="tournament-card">
+      <span class="t-status ${t.status}">${TOUR_STATUS_LABEL[t.status] || t.status}</span>
+      <h4>${t.name} <span style="font-size:11px; color:var(--muted);">(${t.mode === 'real' ? '💳 купленные' : '🎁 бонусные'})</span></h4>
+      <div class="t-stats">
+        <div>Взнос: <b>${t.entry_fee}</b></div>
+        <div>Приз. фонд: <b>${t.prize_pool}</b></div>
+        <div>Участников: <b>${t.registeredCount} / ${t.max_players}</b></div>
+      </div>
+      ${t.status === 'registering' ? `<button class="btn secondary" data-start-tid="${t.id}" style="margin-top:0;">Начать турнир</button>` : ''}
+    </div>
+  `).join('');
+  el.querySelectorAll('button[data-start-tid]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      try{
+        const res = await api(`/api/admin/tournaments/${btn.dataset.startTid}/start`, 'POST');
+        alert(`Турнир запущен, столов создано: ${res.tables}`);
+        await refreshAdminTournaments();
+      }catch(e){ alert(e.message); }
+    });
+  });
+}
+
 async function refreshSlotsStats(){
   const el = document.getElementById('slotsStatRow');
   let data;
