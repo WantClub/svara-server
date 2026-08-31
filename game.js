@@ -15,20 +15,9 @@ function newDeck() {
 }
 
 function evaluateHand(hand) {
-  const ranks = hand.map(c => c.r);
-  const vals = ranks.map(r => RANK_VALUE[r]).sort((a, b) => b - a);
-
-  // "Свара!" — особая категория, всегда старше всего остального, независимо
-  // от очков. В этом клубе это ИМЕННО три туза, а не любая тройка одинаковых
-  // карт — тройка из любых других карт (дамы, валеты и т.д.) особого статуса
-  // не имеет и сравнивается по очкам вместе со всеми остальными руками.
-  if (ranks.every(r => r === 'A')) return [1, vals[0]];
-
-  // Всё остальное (в том числе тройка НЕ из тузов, флеш, пара, старшая
-  // карта) НЕ имеет иерархии между собой — побеждают просто набранные очки
-  // (та же формула, что видит игрок). Если очки равны — это честная ничья
-  // (банк делится пополам/поровну), поэтому здесь НЕТ дополнительного
-  // сравнения по конкретным картам как запасного критерия.
+  // Побеждают просто набранные очки (та же формула, что видит игрок,
+  // включая особые значения тройки тузов и тройки шестёрок) — единой
+  // иерархии комбинаций (флеш / пара / старшая карта) нет.
   return [0, handPoints(hand)];
 }
 
@@ -42,6 +31,13 @@ function compareScores(a, b) {
 }
 
 function handPoints(hand) {
+  const ranks = hand.map(c => c.r);
+  // Тройка тузов и тройка шестёрок — зафиксированные клубом особые значения,
+  // не по общей формуле (у тройки одного номинала масти почти всегда разные,
+  // так что "очки по общей масти" не сработали бы для них естественным путём).
+  if (ranks.every(r => r === 'A')) return 33;
+  if (ranks.every(r => r === '6')) return 36;
+
   // Настоящее правило Свары: в очки идут только карты общей (самой
   // многочисленной) масти. Если все три карты одной масти — суммируются
   // все три. Если только две совпадают мастью — третья (одиночная) карта
@@ -60,8 +56,7 @@ function handPoints(hand) {
 function handCategoryName(hand) {
   const ranks = hand.map(c => c.r);
   const suits = hand.map(c => c.s);
-  // "Свара!" — именно три туза, а не любая тройка одинаковых карт.
-  if (ranks.every(r => r === 'A')) return "Тройка (свара!)";
+  if (new Set(ranks).size === 1) return "Тройка";
   if (new Set(suits).size === 1) return "Флеш";
   const counts = {};
   ranks.forEach(r => counts[r] = (counts[r] || 0) + 1);
@@ -188,17 +183,31 @@ function resolveIfDone(room) {
       if (bestScore === null || compareScores(sc, bestScore) > 0) { bestScore = sc; winners = [i]; }
       else if (compareScores(sc, bestScore) === 0) winners.push(i);
     });
-    // Делим банк поровну между победителями (при ничьей). Если банк не
-    // делится нацело — остаток раньше просто "исчезал" (терялся при
-    // округлении вниз). Теперь раздаём остаток по одной фишке первым
-    // победителям по очереди, чтобы ни одна фишка банка не пропадала.
-    const share = Math.floor(room.pot / winners.length);
-    const remainder = room.pot - share * winners.length;
-    winners.forEach((i, idx) => {
-      room.seats[i].chips += share + (idx < remainder ? 1 : 0);
-    });
-    room.lastWinner = winners.map(i => room.seats[i].username);
     room.log.push(`Вскрытие: ${active.map(i => `${room.seats[i].username} — ${describeHand(room.seats[i].hand)}`).join('; ')}.`);
+
+    // Если лучшие очки совпали у нескольких игроков — банк НЕ делится между
+    // ними. Объявляется "Свара": именно этим игрокам сдаются новые карты
+    // (без каких-либо новых ставок), и сравнение повторяется заново, пока
+    // не останется один-единственный победитель, который и забирает весь банк.
+    let sveraRound = 0;
+    while (winners.length > 1 && sveraRound < 20) {
+      sveraRound++;
+      const deck = newDeck();
+      winners.forEach(i => { room.seats[i].hand = [deck.pop(), deck.pop(), deck.pop()]; });
+      room.log.push(`Свара! Новая раздача между ${winners.map(i => room.seats[i].username).join(', ')} — банк ${room.pot} сохраняется.`);
+      let newBest = null, newWinners = [];
+      winners.forEach(i => {
+        const sc = evaluateHand(room.seats[i].hand);
+        if (newBest === null || compareScores(sc, newBest) > 0) { newBest = sc; newWinners = [i]; }
+        else if (compareScores(sc, newBest) === 0) newWinners.push(i);
+      });
+      room.log.push(`Свара: ${winners.map(i => `${room.seats[i].username} — ${describeHand(room.seats[i].hand)}`).join('; ')}.`);
+      winners = newWinners;
+    }
+
+    const winnerIdx = winners[0];
+    room.seats[winnerIdx].chips += room.pot;
+    room.lastWinner = [room.seats[winnerIdx].username];
     room.log.push(`Банк ${room.pot} забирает: ${room.lastWinner.join(', ')}.`);
     room.phase = 'handEnd';
     room.lastPotSize = room.pot;
