@@ -1117,7 +1117,9 @@ function logout(){
 
 async function afterLogin(){
   connectSocket();
-  enterDashboard();
+  await loadCashierButtons();
+  await loadWalletLabels();
+  await enterDashboard();
 }
 
 function connectSocket(){
