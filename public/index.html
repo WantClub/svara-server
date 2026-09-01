@@ -1422,8 +1422,8 @@ async function refreshTournamentsList(){
       <span class="t-status registering">Регистрация открыта</span>
       <h4>${t.name}</h4>
       <div class="t-stats">
-        <div>Взнос: <b>${t.entry_fee}</b></div>
-        <div>Приз. фонд: <b>${t.prize_pool}</b></div>
+        <div>Взнос: <b>${fmtChips(t.entry_fee)}</b></div>
+        <div>Приз. фонд: <b>${fmtChips(t.prize_pool)}</b></div>
         <div>Участников: <b>${t.registeredCount} / ${t.max_players}</b></div>
       </div>
       <button class="btn ${t.iAmRegistered?'secondary':''}" data-tid="${t.id}" data-act="${t.iAmRegistered?'unreg':'reg'}" style="margin-top:0;">
@@ -1894,8 +1894,8 @@ async function refreshAdminTournaments(){
       <span class="t-status ${t.status}">${TOUR_STATUS_LABEL[t.status] || t.status}</span>
       <h4>${t.name} <span style="font-size:11px; color:var(--muted);">(${t.mode === 'real' ? '💳 купленные' : '🎁 бонусные'})</span></h4>
       <div class="t-stats">
-        <div>Взнос: <b>${t.entry_fee}</b></div>
-        <div>Приз. фонд: <b>${t.prize_pool}</b></div>
+        <div>Взнос: <b>${fmtChips(t.entry_fee)}</b></div>
+        <div>Приз. фонд: <b>${fmtChips(t.prize_pool)}</b></div>
         <div>Участников: <b>${t.registeredCount} / ${t.max_players}</b></div>
       </div>
       ${t.status === 'registering' ? `<button class="btn secondary" data-start-tid="${t.id}" style="margin-top:0;">Начать турнир</button>` : ''}
