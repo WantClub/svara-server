@@ -827,6 +827,14 @@
       <button class="btn secondary" id="saveWalletLabelsBtn" style="max-width:260px;">Сохранить</button>
       <div class="err" id="walletLabelsErr"></div>
     </div>
+    <div class="card-panel">
+      <h3>Символ фишек</h3>
+      <p class="hint">Необязательный значок (например эмодзи), который будет показываться рядом с числом фишек — например «1000 💎» вместо просто «1000». Можно оставить пустым.</p>
+      <label>Символ</label>
+      <input type="text" id="chipSymbolInput" maxlength="10" placeholder="например 💎 или ₽">
+      <button class="btn secondary" id="saveChipSymbolBtn" style="max-width:260px; margin-top:14px;">Сохранить</button>
+      <div class="err" id="chipSymbolErr"></div>
+    </div>
     </div>
 
     <div id="adminTabTournaments" style="display:none;">
@@ -1059,6 +1067,18 @@ async function loadWalletLabels(){
   }catch(e){}
 }
 
+let chipSymbol = '';
+function fmtChips(n){
+  return chipSymbol ? `${n} ${chipSymbol}` : String(n);
+}
+async function loadChipSymbol(){
+  try{
+    const data = await api('/api/chip-symbol', 'GET');
+    chipSymbol = data.symbol || '';
+    renderDashBalance(); // сразу переотрисовать баланс с новым символом, если кошелёк уже виден
+  }catch(e){}
+}
+
 /* ===================== API HELPERS ===================== */
 async function api(path, method, body){
   const res = await fetch(API + path, {
@@ -1119,6 +1139,7 @@ async function afterLogin(){
   connectSocket();
   await loadCashierButtons();
   await loadWalletLabels();
+  await loadChipSymbol();
   await enterDashboard();
 }
 
@@ -1224,8 +1245,8 @@ async function enterDashboard(){
   if(socket) socket.emit('lobby:join');
 }
 function renderDashBalance(){
-  document.getElementById('wmBonusAmount').textContent = me.chipsBonus;
-  document.getElementById('wmRealAmount').textContent = me.chipsReal;
+  document.getElementById('wmBonusAmount').textContent = fmtChips(me.chipsBonus);
+  document.getElementById('wmRealAmount').textContent = fmtChips(me.chipsReal);
   document.getElementById('walletBonusBox').classList.toggle('active', me.activeMode === 'bonus');
   document.getElementById('walletRealBox').classList.toggle('active', me.activeMode === 'real');
 }
@@ -1760,6 +1781,7 @@ async function enterAdmin(){
   refreshRakeStats();
   loadCashierSettingsForm();
   loadWalletLabelsForm();
+  loadChipSymbolForm();
   refreshAdminTournaments();
 }
 document.querySelectorAll('[data-admintab]').forEach(t=>{
@@ -1811,6 +1833,27 @@ document.getElementById('saveWalletLabelsBtn').addEventListener('click', async (
   try{
     await api('/api/admin/wallet-labels', 'POST', { bonusLabel, realLabel });
     await loadWalletLabels(); // сразу обновляем подписи на самом кошельке
+    errEl.style.color = 'var(--green)';
+    errEl.textContent = 'Сохранено!';
+    setTimeout(()=>{ errEl.textContent = ''; errEl.style.color = ''; }, 2000);
+  }catch(e){
+    errEl.style.color = '';
+    errEl.textContent = e.message;
+  }
+});
+
+async function loadChipSymbolForm(){
+  try{
+    const data = await api('/api/chip-symbol', 'GET');
+    document.getElementById('chipSymbolInput').value = data.symbol;
+  }catch(e){}
+}
+document.getElementById('saveChipSymbolBtn').addEventListener('click', async ()=>{
+  const errEl = document.getElementById('chipSymbolErr'); errEl.textContent = '';
+  const symbol = document.getElementById('chipSymbolInput').value;
+  try{
+    await api('/api/admin/chip-symbol', 'POST', { symbol });
+    await loadChipSymbol(); // сразу обновляем на самом кошельке
     errEl.style.color = 'var(--green)';
     errEl.textContent = 'Сохранено!';
     setTimeout(()=>{ errEl.textContent = ''; errEl.style.color = ''; }, 2000);
@@ -2521,6 +2564,7 @@ window.addEventListener('appinstalled', () => {
     connectSocket();
     await loadCashierButtons();
     await loadWalletLabels();
+    await loadChipSymbol();
     await enterDashboard();
   }catch(e){
     logout();

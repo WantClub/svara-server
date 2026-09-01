@@ -253,6 +253,21 @@ app.post('/api/admin/wallet-labels', authMiddleware, adminMiddleware, (req, res)
   res.json({ ok: true, ...getWalletLabels() });
 });
 
+// Символ/значок фишек — необязательное украшение рядом с числом (например
+// эмодзи), показывается везде, где на сайте виден баланс. Пустая строка —
+// значит символ выключен, показывается просто число.
+app.get('/api/chip-symbol', authMiddleware, (req, res) => {
+  res.json({ symbol: getSetting('chip_symbol', '') });
+});
+app.post('/api/admin/chip-symbol', authMiddleware, adminMiddleware, (req, res) => {
+  const { symbol } = req.body || {};
+  if (typeof symbol !== 'string' || symbol.length > 10) {
+    return res.status(400).json({ error: 'Символ фишек: до 10 символов (можно оставить пустым).' });
+  }
+  setSetting('chip_symbol', symbol.trim());
+  res.json({ ok: true, symbol: symbol.trim() });
+});
+
 app.post('/api/me/avatar', authMiddleware, (req, res) => {
   const { imageData } = req.body || {};
   if (!imageData || typeof imageData !== 'string') return res.status(400).json({ error: 'Нет данных изображения.' });
