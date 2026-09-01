@@ -527,6 +527,49 @@
   .crash-multiplier{font-family:var(--font-display); font-size:44px; font-weight:800; color:var(--gold); text-shadow:0 0 20px rgba(198,161,91,0.5);}
   .crash-multiplier.crashed{color:var(--red);}
   .crash-plane{position:absolute; font-size:28px; left:16px; bottom:16px; transition:transform 0.1s linear;}
+
+  /* ===== Рулетка ===== */
+  .roulette-wheel-wrap{
+    text-align:center; margin:14px 0; padding:24px 16px; border-radius:16px;
+    background: radial-gradient(ellipse at 50% 20%, rgba(198,161,91,0.08), transparent 65%), var(--surface);
+    border:1px solid var(--panel-line);
+  }
+  .roulette-wheel{
+    width:210px; height:210px; border-radius:50%; margin:auto; position:relative;
+    border:3px solid var(--gold); box-shadow:0 0 0 1px rgba(0,0,0,0.6), 0 0 26px rgba(198,161,91,0.2), 0 16px 34px rgba(0,0,0,0.5);
+    background:conic-gradient(#0d3a1f 0.00deg 9.73deg,#7a1f2b 9.73deg 19.46deg,#1a1712 19.46deg 29.19deg,#7a1f2b 29.19deg 38.92deg,#1a1712 38.92deg 48.65deg,#7a1f2b 48.65deg 58.38deg,#1a1712 58.38deg 68.11deg,#7a1f2b 68.11deg 77.84deg,#1a1712 77.84deg 87.57deg,#7a1f2b 87.57deg 97.30deg,#1a1712 97.30deg 107.03deg,#1a1712 107.03deg 116.76deg,#7a1f2b 116.76deg 126.49deg,#1a1712 126.49deg 136.22deg,#7a1f2b 136.22deg 145.95deg,#1a1712 145.95deg 155.68deg,#7a1f2b 155.68deg 165.41deg,#1a1712 165.41deg 175.14deg,#7a1f2b 175.14deg 184.86deg,#7a1f2b 184.86deg 194.59deg,#1a1712 194.59deg 204.32deg,#7a1f2b 204.32deg 214.05deg,#1a1712 214.05deg 223.78deg,#7a1f2b 223.78deg 233.51deg,#1a1712 233.51deg 243.24deg,#7a1f2b 243.24deg 252.97deg,#1a1712 252.97deg 262.70deg,#7a1f2b 262.70deg 272.43deg,#1a1712 272.43deg 282.16deg,#1a1712 282.16deg 291.89deg,#7a1f2b 291.89deg 301.62deg,#1a1712 301.62deg 311.35deg,#7a1f2b 311.35deg 321.08deg,#1a1712 321.08deg 330.81deg,#7a1f2b 330.81deg 340.54deg,#1a1712 340.54deg 350.27deg,#7a1f2b 350.27deg 360.00deg);
+    transition:transform 3.2s cubic-bezier(.12,.7,.15,1);
+  }
+  .roulette-hub{
+    position:absolute; inset:50%; width:52px; height:52px; transform:translate(-50%,-50%);
+    border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle, var(--gold), #6b5417);
+    font-size:22px; color:#1a1207; border:2px solid rgba(0,0,0,0.4); box-shadow:0 2px 8px rgba(0,0,0,0.4);
+  }
+  .roulette-result{margin-top:18px; font-size:14px; color:var(--muted); letter-spacing:0.02em;}
+  .roulette-result b{color:var(--gold); font-family:var(--font-mono); font-size:16px;}
+  .roulette-stats{display:flex; justify-content:center; gap:20px; font-size:12.5px; color:var(--muted); margin-bottom:10px;}
+  .roulette-stats b{color:var(--gold); font-family:var(--font-mono);}
+  .roulette-board{display:grid; grid-template-columns:repeat(9, 1fr); gap:4px; margin-top:12px;}
+  .roulette-board .cell{
+    min-height:36px; border:1px solid rgba(255,255,255,0.06); color:var(--ivory); font-family:var(--font-mono);
+    font-size:12.5px; font-weight:700; cursor:pointer; border-radius:6px;
+    display:flex; align-items:center; justify-content:center; transition:transform 0.1s ease, box-shadow 0.15s ease;
+  }
+  .roulette-board .cell.red{background:linear-gradient(160deg, #7a1f2b, #4a1119);}
+  .roulette-board .cell.black{background:linear-gradient(160deg, #201c14, #100d09);}
+  .roulette-board .cell.green{background:linear-gradient(160deg, #0d3a1f, #06210f);}
+  .roulette-board .cell:hover{ transform:translateY(-1px); box-shadow:0 0 0 1px var(--gold-dim); }
+  .roulette-outside{display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; margin-top:8px;}
+  .roulette-outside button{
+    background:var(--surface); border:1px solid var(--panel-line); color:var(--ivory); font-size:11.5px;
+    font-family:var(--font-mono); letter-spacing:0.03em; padding:11px 4px; border-radius:7px; cursor:pointer;
+    transition:border-color 0.15s ease, color 0.15s ease;
+  }
+  .roulette-outside button:hover{ border-color:var(--gold-dim); color:var(--gold); }
+  .roulette-chips{display:flex; gap:8px; justify-content:center; margin:14px 0; flex-wrap:wrap;}
+  .roulette-chips .chip-btn{width:44px; height:44px; font-size:11.5px;}
+  .roulette-actions{display:flex; gap:8px; margin-top:14px;}
+  .roulette-actions .btn{flex:1; margin-top:0;}
 </style>
 </head>
 <body>
@@ -672,6 +715,11 @@
     </div>
 
     <div class="card-panel">
+      <h3>🎡 Рулетка</h3>
+      <p class="hint">Настоящая европейская рулетка (0-36). Выберите фишку, ставьте на числа или на внешние поля (цвет, чёт/нечет, дюжины), нажмите «Крутить». Выплаты — как в обычном казино: число 35:1, цвет/чёт-нечет 1:1, дюжина 2:1.</p>
+    </div>
+
+    <div class="card-panel">
       <h3 data-i18n="tut_sport_title">⚽ Кибер Футбол</h3>
       <p class="hint" data-i18n="tut_sport_p1">Полностью автоматическая игра — компьютер сам генерирует матч и коэффициенты, новый матч стартует каждую минуту. Ставьте на исход (П1/Ничья/П2), пока идёт приём ставок — результат определяется случайно, честно и автоматически, без чьего-либо участия.</p>
     </div>
@@ -695,6 +743,13 @@
           <h4>Crash</h4>
           <p style="color:rgba(255,255,255,0.75); font-size:12.5px; margin:4px 0 0;">Множитель растёт — успей забрать до краха.</p>
           <span class="rtp-badge">отдача ~92%</span>
+          <div class="play-hint">▶ Играть</div>
+        </div>
+        <div class="slot-machine-card" id="pickRouletteCard" style="--slot-grad: linear-gradient(145deg, #0d3a1f, #041008);">
+          <div class="symbols-row">🎡 🔴 ⚫</div>
+          <h4>Рулетка</h4>
+          <p style="color:rgba(255,255,255,0.75); font-size:12.5px; margin:4px 0 0;">Европейская рулетка — числа, цвета, дюжины. Настоящая математика казино.</p>
+          <span class="rtp-badge">отдача ~97%</span>
           <div class="play-hint">▶ Играть</div>
         </div>
       </div>
@@ -765,6 +820,39 @@
     <div class="card-panel">
       <h3>Последние раунды</h3>
       <div id="crashHistoryList"></div>
+    </div>
+  </div>
+
+  <!-- РУЛЕТКА -->
+  <div id="rouletteView" class="limited" style="display:none;">
+    <div class="card-panel">
+      <div class="linklike" id="backToFastGamesFromRoulette" style="margin-bottom:10px;">← выбрать другую игру</div>
+      <h3>Рулетка</h3>
+      <p class="hint">Европейская рулетка (0-36), настоящая математика казино. Игра на фишки клуба. Отдача ~97.3%.</p>
+
+      <div class="roulette-wheel-wrap">
+        <div class="roulette-wheel" id="rouletteWheel"><div class="roulette-hub">♠</div></div>
+        <div class="roulette-result" id="rouletteResultText">Выпало: <b id="rouletteResultNum">—</b></div>
+      </div>
+
+      <div class="roulette-stats">
+        <span>Ставка: <b id="rouletteTotalBet">0</b></span>
+      </div>
+
+      <div class="roulette-board" id="rouletteBoard"></div>
+      <div class="roulette-outside" id="rouletteOutside"></div>
+      <div class="roulette-chips" id="rouletteChips"></div>
+
+      <div class="roulette-actions">
+        <button class="btn secondary" id="rouletteUndoBtn" style="width:auto;">Отменить</button>
+        <button class="btn secondary" id="rouletteClearBtn" style="width:auto;">Очистить</button>
+        <button class="btn slot-spin-btn" id="rouletteSpinBtn" style="width:auto;">Крутить</button>
+      </div>
+      <div class="err" id="rouletteErr"></div>
+    </div>
+    <div class="card-panel">
+      <h3>Последние спины</h3>
+      <div id="rouletteHistoryList"></div>
     </div>
   </div>
 
@@ -1038,7 +1126,7 @@ function setLang(lang){
 }
 
 function showOnly(ids){
-  ['authView','dashView','adminView','fastGamesPickerView','minesView','crashView','tutorialView','tournamentsView','vfView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','fastGamesPickerView','minesView','crashView','rouletteView','tutorialView','tournamentsView','vfView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -1542,8 +1630,125 @@ function enterFastGamesPicker(){
 }
 document.getElementById('pickMinesCard').addEventListener('click', enterMines);
 document.getElementById('pickCrashCard').addEventListener('click', enterCrash);
+document.getElementById('pickRouletteCard').addEventListener('click', enterRoulette);
 document.getElementById('backToFastGamesFromMines').addEventListener('click', enterFastGamesPicker);
 document.getElementById('backToFastGamesFromCrash').addEventListener('click', enterFastGamesPicker);
+document.getElementById('backToFastGamesFromRoulette').addEventListener('click', enterFastGamesPicker);
+
+/* ===================== РУЛЕТКА ===================== */
+const ROULETTE_RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
+function rouletteColor(n){ return n===0 ? 'green' : ROULETTE_RED.has(n) ? 'red' : 'black'; }
+let rouletteChipValue = 10;
+let roulettePendingBets = []; // [{type, value, amount}] — накапливаются до нажатия "Крутить"
+let rouletteSpinning = false;
+
+function enterRoulette(){
+  showOnly(['topbar','rouletteView']);
+  renderTopbar();
+  roulettePendingBets = [];
+  rouletteSpinning = false;
+  document.getElementById('rouletteErr').textContent = '';
+  document.getElementById('rouletteResultText').innerHTML = 'Выпало: <b id="rouletteResultNum">—</b>';
+  document.getElementById('rouletteWheel').style.transition = 'none';
+  document.getElementById('rouletteWheel').style.transform = 'rotate(0deg)';
+
+  const board = document.getElementById('rouletteBoard');
+  board.innerHTML = '';
+  for(let n=0;n<=36;n++){
+    const b = document.createElement('div');
+    b.className = 'cell ' + rouletteColor(n);
+    b.textContent = n;
+    b.addEventListener('click', ()=> roulettePlaceBet('number', n));
+    board.appendChild(b);
+  }
+
+  const outside = document.getElementById('rouletteOutside');
+  outside.innerHTML = '';
+  [['1-18','low'],['ЧЁТ','even'],['КРАСНОЕ','red'],['ЧЁРНОЕ','black'],['НЕЧЁТ','odd'],['19-36','high'],['1-я 12','d1'],['2-я 12','d2'],['3-я 12','d3']].forEach(([label,val])=>{
+    const b = document.createElement('button');
+    b.textContent = label;
+    b.addEventListener('click', ()=> roulettePlaceBet('outside', val));
+    outside.appendChild(b);
+  });
+
+  const chips = document.getElementById('rouletteChips');
+  chips.innerHTML = FAST_BET_CHIPS.map(v => `<div class="chip-btn${v===rouletteChipValue?' selected':''}" data-chipval="${v}">${v}</div>`).join('');
+  chips.querySelectorAll('[data-chipval]').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      rouletteChipValue = parseInt(el.dataset.chipval);
+      chips.querySelectorAll('[data-chipval]').forEach(x=>x.classList.remove('selected'));
+      el.classList.add('selected');
+    });
+  });
+
+  renderRouletteBetTotal();
+  refreshRouletteHistory();
+}
+function roulettePlaceBet(type, value){
+  if(rouletteSpinning) return;
+  if(rouletteChipValue > me.chips){ document.getElementById('rouletteErr').textContent = `Недостаточно фишек. На балансе: ${me.chips}.`; return; }
+  document.getElementById('rouletteErr').textContent = '';
+  roulettePendingBets.push({type, value, amount: rouletteChipValue});
+  renderRouletteBetTotal();
+}
+function renderRouletteBetTotal(){
+  const total = roulettePendingBets.reduce((s,b)=>s+b.amount,0);
+  document.getElementById('rouletteTotalBet').textContent = fmtChips(total);
+}
+document.getElementById('rouletteUndoBtn').addEventListener('click', ()=>{
+  if(rouletteSpinning || !roulettePendingBets.length) return;
+  roulettePendingBets.pop();
+  renderRouletteBetTotal();
+});
+document.getElementById('rouletteClearBtn').addEventListener('click', ()=>{
+  if(rouletteSpinning) return;
+  roulettePendingBets = [];
+  renderRouletteBetTotal();
+});
+document.getElementById('rouletteSpinBtn').addEventListener('click', async ()=>{
+  if(rouletteSpinning) return;
+  const errEl = document.getElementById('rouletteErr'); errEl.textContent = '';
+  if(!roulettePendingBets.length){ errEl.textContent = 'Сделайте хотя бы одну ставку.'; return; }
+
+  rouletteSpinning = true;
+  let res;
+  try{ res = await api('/api/roulette/spin', 'POST', { bets: roulettePendingBets }); }
+  catch(e){ errEl.textContent = e.message; rouletteSpinning = false; return; }
+
+  const wheel = document.getElementById('rouletteWheel');
+  wheel.style.transition = 'transform 3.2s cubic-bezier(.12,.7,.15,1)';
+  wheel.style.transform = `rotate(${1440 + res.number*9.73}deg)`;
+
+  setTimeout(async ()=>{
+    me.chips = res.chips;
+    const colorLabel = {red:'красное', black:'чёрное', green:'зелёное'}[res.color];
+    document.getElementById('rouletteResultText').innerHTML = `Выпало: <b>${res.number} (${colorLabel})</b>`;
+    const totalStake = roulettePendingBets.reduce((s,b)=>s+b.amount,0);
+    if(res.payout > totalStake){
+      errEl.style.color = 'var(--green)'; errEl.textContent = `Выигрыш! +${res.payout - totalStake} фишек`;
+    } else if(res.payout > 0){
+      errEl.style.color = ''; errEl.textContent = `Частичный возврат: ${res.payout} фишек`;
+    } else {
+      errEl.style.color = 'var(--muted)'; errEl.textContent = 'Не повезло — попробуйте ещё раз.';
+    }
+    roulettePendingBets = [];
+    renderRouletteBetTotal();
+    await refreshRouletteHistory();
+    rouletteSpinning = false;
+  }, 3300);
+});
+async function refreshRouletteHistory(){
+  const el = document.getElementById('rouletteHistoryList');
+  let data;
+  try{ data = await api('/api/roulette/myspins', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.spins.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Спинов пока нет.</div>'; return; }
+  el.innerHTML = data.spins.map(s => {
+    const net = s.payout - s.stake;
+    const badge = net > 0 ? `<span class="pill active">+${net}</span>` : net === 0 ? `<span class="pill" style="background:rgba(198,161,91,0.1); color:var(--muted);">0</span>` : `<span class="pill banned">${net}</span>`;
+    const colorLabel = {red:'🔴', black:'⚫', green:'🟢'}[rouletteColor(s.number)];
+    return `<div class="open-room-row"><div>${colorLabel} ${s.number}<div class="meta">ставка ${s.stake}</div></div>${badge}</div>`;
+  }).join('');
+}
 
 /* ===================== MINES ===================== */
 let minesInProgress = false;

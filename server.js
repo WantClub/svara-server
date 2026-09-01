@@ -16,6 +16,7 @@ const mines = require('./mines');
 const crash = require('./crash');
 const tournamentLogic = require('./tournament');
 const vf = require('./virtualfootball');
+const roulette = require('./roulette');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const PORT = process.env.PORT || 3000;
@@ -553,6 +554,37 @@ app.post('/api/mines/cashout', authMiddleware, (req, res) => {
 app.get('/api/mines/myrounds', authMiddleware, (req, res) => {
   const rows = db.prepare('SELECT * FROM mines_rounds WHERE username = ? COLLATE NOCASE ORDER BY id DESC LIMIT 15').all(req.dbUser.username);
   res.json({ rounds: rows });
+});
+
+// ===================== РУЛЕТКА (европейская, честная, 0-36) =====================
+app.post('/api/roulette/spin', authMiddleware, (req, res) => {
+  const rawBets = req.body?.bets;
+  if (!Array.isArray(rawBets) || rawBets.length === 0) return res.status(400).json({ error: 'Сделайте хотя бы одну ставку.' });
+  if (rawBets.length > roulette.MAX_BETS_PER_SPIN) return res.status(400).json({ error: `Слишком много ставок за один спин (максимум ${roulette.MAX_BETS_PER_SPIN}).` });
+  for (const b of rawBets) {
+    if (!roulette.validateBet(b)) return res.status(400).json({ error: 'Некорректная ставка.' });
+  }
+  const bets = rawBets.map(b => ({ type: b.type, value: b.type === 'number' ? parseInt(b.value) : b.value, amount: parseInt(b.amount) }));
+  const totalStake = bets.reduce((s, b) => s + b.amount, 0);
+
+  const user = getUserByUsername(req.dbUser.username);
+  const wf = activeWalletField(user);
+  const balance = activeBalance(user);
+  if (totalStake > balance) return res.status(400).json({ error: `Недостаточно фишек. На балансе: ${balance}.` });
+
+  const result = roulette.playSpin(bets);
+  const net = result.totalPayout - totalStake;
+  db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ?`).run(net, user.username);
+  db.prepare('INSERT INTO roulette_spins (username, number, bets_json, stake, payout, mode, created_at) VALUES (?,?,?,?,?,?,?)')
+    .run(user.username, result.number, JSON.stringify(bets), totalStake, result.totalPayout, user.active_mode, Date.now());
+
+  const updated = getUserByUsername(user.username);
+  res.json({ ok: true, number: result.number, color: result.color, payout: result.totalPayout, chips: activeBalance(updated) });
+});
+
+app.get('/api/roulette/myspins', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM roulette_spins WHERE username = ? COLLATE NOCASE ORDER BY id DESC LIMIT 15').all(req.dbUser.username);
+  res.json({ spins: rows });
 });
 
 // ===================== CRASH (Авиатор) =====================

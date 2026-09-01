@@ -204,6 +204,16 @@ CREATE TABLE IF NOT EXISTS vf_bets (
   mode TEXT NOT NULL DEFAULT 'bonus',
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS roulette_spins (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT NOT NULL,
+  number INTEGER NOT NULL,
+  bets_json TEXT NOT NULL,
+  stake INTEGER NOT NULL,
+  payout INTEGER NOT NULL,
+  mode TEXT NOT NULL DEFAULT 'bonus',
+  created_at INTEGER NOT NULL
+);
 `);
 
 // Миграция: какой именно слот-автомат использовался в спине (для тех, кто
