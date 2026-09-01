@@ -84,6 +84,7 @@
   .wallet-mode-box .wm-label{font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-bottom:6px;}
   .wallet-mode-box.active .wm-label{ color:var(--gold); }
   .wallet-mode-box .wm-amount{font-family:var(--font-mono); font-size:24px; font-weight:700; color:var(--ivory);}
+  .wallet-mode-box .wm-amount .chip-sym{font-family:initial; margin-left:2px; display:inline-block;}
   .wallet-mode-box.active .wm-amount{ color:var(--gold); }
   .dash-actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
   .dash-actions .btn{width:auto; flex:1; min-width:140px; margin-top:0;}
@@ -1069,7 +1070,7 @@ async function loadWalletLabels(){
 
 let chipSymbol = '';
 function fmtChips(n){
-  return chipSymbol ? `${n} ${chipSymbol}` : String(n);
+  return chipSymbol ? `${n}<span class="chip-sym">${chipSymbol}</span>` : String(n);
 }
 async function loadChipSymbol(){
   try{
@@ -1245,8 +1246,8 @@ async function enterDashboard(){
   if(socket) socket.emit('lobby:join');
 }
 function renderDashBalance(){
-  document.getElementById('wmBonusAmount').textContent = fmtChips(me.chipsBonus);
-  document.getElementById('wmRealAmount').textContent = fmtChips(me.chipsReal);
+  document.getElementById('wmBonusAmount').innerHTML = fmtChips(me.chipsBonus);
+  document.getElementById('wmRealAmount').innerHTML = fmtChips(me.chipsReal);
   document.getElementById('walletBonusBox').classList.toggle('active', me.activeMode === 'bonus');
   document.getElementById('walletRealBox').classList.toggle('active', me.activeMode === 'real');
 }
