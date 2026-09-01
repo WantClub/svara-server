@@ -192,6 +192,18 @@ CREATE TABLE IF NOT EXISTS tournament_players (
   registered_at INTEGER NOT NULL,
   eliminated_at INTEGER
 );
+CREATE TABLE IF NOT EXISTS vf_bets (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  match_num INTEGER NOT NULL,
+  username TEXT NOT NULL,
+  pick TEXT NOT NULL,
+  stake INTEGER NOT NULL,
+  odds REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  payout INTEGER NOT NULL DEFAULT 0,
+  mode TEXT NOT NULL DEFAULT 'bonus',
+  created_at INTEGER NOT NULL
+);
 `);
 
 // Миграция: какой именно слот-автомат использовался в спине (для тех, кто

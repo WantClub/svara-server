@@ -107,6 +107,31 @@
   .t-status.running{ background:rgba(198,161,91,0.18); color:var(--gold); }
   .t-status.finished{ background:rgba(255,255,255,0.08); color:var(--muted); }
 
+  /* ===== Виртуальный футбол ===== */
+  .vf-match-box{
+    background:radial-gradient(ellipse at 50% 0%, rgba(31,122,77,0.12), transparent 60%), var(--surface);
+    border:2px solid var(--gold-dim); border-radius:14px; padding:20px 16px; text-align:center;
+  }
+  .vf-phase-badge{
+    display:inline-block; font-size:11px; text-transform:uppercase; letter-spacing:0.06em;
+    padding:4px 12px; border-radius:12px; margin-bottom:14px; font-family:var(--font-mono);
+    background:rgba(198,161,91,0.15); color:var(--gold); border:1px solid var(--gold-dim);
+  }
+  .vf-phase-badge.playing{ background:rgba(198,161,91,0.25); animation:vfPulse 1.2s ease-in-out infinite; }
+  .vf-phase-badge.result{ background:rgba(31,122,77,0.25); color:var(--green); border-color:var(--green); }
+  @keyframes vfPulse{ 0%,100%{opacity:1;} 50%{opacity:0.55;} }
+  .vf-teams{display:flex; align-items:center; justify-content:center; gap:14px; margin-bottom:10px;}
+  .vf-team{font-family:var(--font-display); font-size:16px; color:var(--ivory); flex:1; text-align:center;}
+  .vf-vs{color:var(--muted); font-size:12px; font-family:var(--font-mono);}
+  .vf-timer{font-family:var(--font-mono); font-size:22px; color:var(--gold); font-weight:700;}
+  .vf-result{margin-top:10px; font-size:14px; color:var(--green); font-weight:700; min-height:20px;}
+  #vfOddsButtons .btn.selected{ border-color:var(--gold); background:rgba(198,161,91,0.15); color:var(--gold); }
+  #vfOddsButtons .btn:disabled{ opacity:0.45; cursor:not-allowed; }
+  .vf-mybet-tag{
+    margin-top:12px; text-align:center; font-size:12.5px; color:var(--gold);
+    background:rgba(198,161,91,0.1); border:1px solid var(--gold-dim); border-radius:8px; padding:8px;
+  }
+
   /* ===== Вкладки лобби ===== */
   .lobby-tabs{display:flex; gap:8px; flex-wrap:wrap;}
   .lobby-tab{
@@ -535,7 +560,7 @@
     <div class="drawer-item" id="drwLobby"><span class="ic">🃏</span> <span data-i18n="menu_lobby">Свара • Тринка • Сека</span></div>
     <div class="drawer-item" id="drwTournaments"><span class="ic">🏆</span> Турниры Свара</div>
     <div class="drawer-item" id="drwFastGames"><span class="ic">⚡</span> <span data-i18n="menu_fastgames">Быстрые игры</span></div>
-    <div class="drawer-item" id="drwSport"><span class="ic">⚽</span> <span data-i18n="menu_sport">Спорт</span></div>
+    <div class="drawer-item" id="drwVirtualFootball"><span class="ic">⚽</span> Кибер Футбол</div>
     <div class="drawer-item" id="drwTutorial"><span class="ic">🎓</span> <span data-i18n="menu_tutorial">Обучение</span></div>
     <div class="drawer-item" id="drwRules"><span class="ic">📜</span> <span data-i18n="menu_rules">Правила клуба</span></div>
     <div class="drawer-item" id="drwInstallApp" style="display:none;"><span class="ic">📲</span> Установить приложение</div>
@@ -647,8 +672,8 @@
     </div>
 
     <div class="card-panel">
-      <h3 data-i18n="tut_sport_title">⚽ Ставки на спорт</h3>
-      <p class="hint" data-i18n="tut_sport_p1">Администратор клуба публикует матчи с коэффициентами. Выберите исход, укажите ставку — если прогноз окажется верным, выигрыш зачислится автоматически после того, как администратор укажет результат матча.</p>
+      <h3 data-i18n="tut_sport_title">⚽ Кибер Футбол</h3>
+      <p class="hint" data-i18n="tut_sport_p1">Полностью автоматическая игра — компьютер сам генерирует матч и коэффициенты, новый матч стартует каждую минуту. Ставьте на исход (П1/Ничья/П2), пока идёт приём ставок — результат определяется случайно, честно и автоматически, без чьего-либо участия.</p>
     </div>
   </div>
 
@@ -743,15 +768,32 @@
     </div>
   </div>
 
-  <div id="sportView" class="limited" style="display:none;">
+  <!-- ВИРТУАЛЬНЫЙ ФУТБОЛ -->
+  <div id="vfView" class="limited" style="display:none;">
     <div class="card-panel">
-      <h3>Спорт — ставки на фишки клуба</h3>
-      <p class="hint">Коэффициенты задаёт администратор вручную для каждого матча. Ставки — только на фишки клуба, без реальных денег.</p>
-      <div id="sportMatchesList"></div>
+      <h3>⚽ Кибер Футбол</h3>
+      <p class="hint">Полностью автоматическая игра — новый матч каждую минуту, результат считает компьютер. Игра на фишки клуба, без реальных денег. Средняя отдача ~91%.</p>
+      <div class="vf-match-box">
+        <div class="vf-phase-badge" id="vfPhaseBadge">Загрузка…</div>
+        <div class="vf-teams">
+          <div class="vf-team" id="vfHomeTeam">—</div>
+          <div class="vf-vs">vs</div>
+          <div class="vf-team" id="vfAwayTeam">—</div>
+        </div>
+        <div class="vf-timer" id="vfTimer"></div>
+        <div class="vf-result" id="vfResult"></div>
+      </div>
+      <div class="row2" id="vfOddsButtons" style="margin-top:14px;">
+        <button class="btn secondary" id="vfBtnHome" style="width:auto;"></button>
+        <button class="btn secondary" id="vfBtnDraw" style="width:auto;"></button>
+        <button class="btn secondary" id="vfBtnAway" style="width:auto;"></button>
+      </div>
+      <div class="err" id="vfBetErr"></div>
+      <div id="vfMyBetTag"></div>
     </div>
     <div class="card-panel">
       <h3>Мои ставки</h3>
-      <div id="sportMyBetsList"></div>
+      <div id="vfMyBetsList"></div>
     </div>
   </div>
 
@@ -949,8 +991,8 @@ const I18N = {
     tut_mines_p1: 'Выберите размер поля, количество мин и ставку. Открывайте клетки по одной — каждая безопасная клетка повышает множитель выигрыша. Забрать выигрыш можно в любой момент, но если откроете клетку с миной — раздача проиграна.',
     tut_crash_title: '🚀 Crash',
     tut_crash_p1: 'После старта раунда множитель начинает расти. Нажмите «Забрать сейчас», чтобы зафиксировать текущий множитель. Если не успеете нажать до момента краха — ставка сгорает.',
-    tut_sport_title: '⚽ Ставки на спорт',
-    tut_sport_p1: 'Администратор клуба публикует матчи с коэффициентами. Выберите исход, укажите ставку — выигрыш зачислится автоматически после того, как администратор укажет результат матча.'
+    tut_sport_title: '⚽ Кибер Футбол',
+    tut_sport_p1: 'Полностью автоматическая игра — компьютер сам генерирует матч и коэффициенты, новый матч стартует каждую минуту. Ставьте на исход, пока идёт приём ставок — результат определяется случайно и автоматически.'
   },
   uz: {
     menu_lobby: 'Lobbi', menu_fastgames: 'Tezkor o‘yinlar', menu_sport: 'Sport',
@@ -973,8 +1015,8 @@ const I18N = {
     tut_mines_p1: 'Maydon o‘lchami, minalar soni va stavkani tanlang. Katakchalarni birma-bir oching — har bir xavfsiz katak yutuq koeffitsientini oshiradi. Yutuqni istalgan vaqtda olishingiz mumkin, lekin minali katakni ochsangiz — o‘yin yutqaziladi.',
     tut_crash_title: '🚀 Crash',
     tut_crash_p1: 'Raund boshlangach, koeffitsient o‘sa boshlaydi. Joriy koeffitsientni qo‘lga kiritish uchun «Hozir olish»ni bosing. Halokat yuz berishidan oldin ulgurmasangiz — stavka kuyadi.',
-    tut_sport_title: '⚽ Sport stavkalari',
-    tut_sport_p1: 'Klub administratori koeffitsientlar bilan o‘yinlarni e’lon qiladi. Natijani tanlang, stavkani kiriting — administrator o‘yin natijasini kiritgach, yutuq avtomatik hisoblanadi.'
+    tut_sport_title: '⚽ Kiber Futbol',
+    tut_sport_p1: 'To‘liq avtomatik o‘yin — kompyuter o‘zi o‘yin va koeffitsientlarni yaratadi, har daqiqada yangi o‘yin boshlanadi. Stavkalar qabul qilinayotganda natijani tanlang — natija tasodifiy va avtomatik aniqlanadi.'
   }
 };
 function t(key){ return (I18N[currentLang] && I18N[currentLang][key]) || I18N.ru[key] || key; }
@@ -996,7 +1038,7 @@ function setLang(lang){
 }
 
 function showOnly(ids){
-  ['authView','dashView','adminView','sportView','fastGamesPickerView','minesView','crashView','tutorialView','tournamentsView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
+  ['authView','dashView','adminView','fastGamesPickerView','minesView','crashView','tutorialView','tournamentsView','vfView','tableTop','feltEl','myHandBar','logBox','chatPanel','topbar'].forEach(id=>{
     document.getElementById(id).style.display = ids.includes(id) ? '' : 'none';
   });
 }
@@ -1029,7 +1071,6 @@ function closeDrawer(){
 document.getElementById('menuBtn').addEventListener('click', openDrawer);
 document.getElementById('drawerBg').addEventListener('click', closeDrawer);
 document.getElementById('drwLobby').addEventListener('click', ()=>{ closeDrawer(); enterDashboard(); });
-document.getElementById('drwSport').addEventListener('click', ()=>{ closeDrawer(); enterSport(); });
 document.getElementById('drwRules').addEventListener('click', ()=>{ closeDrawer(); showRulesModal(); });
 document.getElementById('drwTutorial').addEventListener('click', ()=>{ closeDrawer(); showOnly(['topbar','tutorialView']); renderTopbar(); });
 document.getElementById('drwAdmin').addEventListener('click', ()=>{ closeDrawer(); enterAdmin(); });
@@ -1174,7 +1215,123 @@ function connectSocket(){
     roomCode = "";
     enterDashboard();
   });
+  socket.on('vf:state', (state) => {
+    vfLatestState = state;
+    if(document.getElementById('vfView').style.display !== 'none') renderVfState();
+  });
+  socket.on('vf:won', (data) => {
+    // Тихое уведомление — не мешаем игроку алертом посреди других экранов.
+    if(document.getElementById('vfView').style.display !== 'none'){
+      refreshVfMyBets();
+    }
+  });
 }
+
+/* ===================== ВИРТУАЛЬНЫЙ ФУТБОЛ ===================== */
+let vfLatestState = null;
+let vfMyBetThisMatch = null; // {pick} — чтобы подсветить свою ставку до конца матча
+let vfTimerInterval = null;
+
+async function enterVirtualFootball(){
+  showOnly(['topbar','vfView']);
+  renderTopbar();
+  document.getElementById('vfBetErr').textContent = '';
+  const res = await new Promise(resolve => socket.emit('vf:join', resolve));
+  if(res && res.ok){ vfLatestState = res.state; }
+  renderVfState();
+  await refreshVfMyBets();
+  if(vfTimerInterval) clearInterval(vfTimerInterval);
+  vfTimerInterval = setInterval(updateVfTimerDisplay, 500);
+}
+
+function renderVfState(){
+  const st = vfLatestState;
+  if(!st) return;
+  if(vfMyBetThisMatch && vfMyBetThisMatch.matchNum !== st.matchNum) vfMyBetThisMatch = null;
+
+  document.getElementById('vfHomeTeam').textContent = st.home;
+  document.getElementById('vfAwayTeam').textContent = st.away;
+
+  const badge = document.getElementById('vfPhaseBadge');
+  badge.className = 'vf-phase-badge ' + st.phase;
+  badge.textContent = st.phase === 'betting' ? 'Приём ставок' : st.phase === 'playing' ? 'Идёт матч' : 'Матч завершён';
+
+  const btnHome = document.getElementById('vfBtnHome');
+  const btnDraw = document.getElementById('vfBtnDraw');
+  const btnAway = document.getElementById('vfBtnAway');
+  btnHome.textContent = `П1 · ${st.odds.home.toFixed(2)}`;
+  btnDraw.textContent = `Х · ${st.odds.draw.toFixed(2)}`;
+  btnAway.textContent = `П2 · ${st.odds.away.toFixed(2)}`;
+  const bettingOpen = st.phase === 'betting' && !vfMyBetThisMatch;
+  [btnHome, btnDraw, btnAway].forEach(b => b.disabled = !bettingOpen);
+  btnHome.classList.toggle('selected', vfMyBetThisMatch && vfMyBetThisMatch.pick === 'home');
+  btnDraw.classList.toggle('selected', vfMyBetThisMatch && vfMyBetThisMatch.pick === 'draw');
+  btnAway.classList.toggle('selected', vfMyBetThisMatch && vfMyBetThisMatch.pick === 'away');
+
+  const resultEl = document.getElementById('vfResult');
+  if(st.phase === 'result' && st.result){
+    const label = {home:'Победа П1', draw:'Ничья', away:'Победа П2'}[st.result];
+    resultEl.textContent = `Результат: ${label}`;
+  } else {
+    resultEl.textContent = '';
+  }
+
+  const tagEl = document.getElementById('vfMyBetTag');
+  if(vfMyBetThisMatch){
+    const label = {home:'П1', draw:'Ничья', away:'П2'}[vfMyBetThisMatch.pick];
+    tagEl.innerHTML = `<div class="vf-mybet-tag">Ваша ставка на этот матч: ${label} · ${fmtChips(vfMyBetThisMatch.stake)}</div>`;
+  } else {
+    tagEl.innerHTML = '';
+  }
+
+  updateVfTimerDisplay();
+}
+function updateVfTimerDisplay(){
+  const st = vfLatestState;
+  if(!st){ document.getElementById('vfTimer').textContent = ''; return; }
+  const secsLeft = Math.max(0, Math.ceil((st.phaseEndsAt - Date.now()) / 1000));
+  document.getElementById('vfTimer').textContent = secsLeft > 0 ? `${secsLeft} сек` : '';
+}
+function vfPlaceBet(pick){
+  const st = vfLatestState;
+  if(!st || st.phase !== 'betting' || vfMyBetThisMatch) return;
+  const pickLabel = {home:'П1', draw:'Ничья', away:'П2'}[pick];
+  const odds = st.odds[pick];
+  showModal(`
+    <h4>Ставка: ${pickLabel} (кф. ${odds.toFixed(2)})</h4>
+    <label>Сумма ставки</label><input type="number" id="mVfStake" value="100" min="1" step="10">
+    <div class="err" id="mVfStakeErr"></div>
+    <button class="btn" id="mVfStakeConfirm">Поставить</button>
+    <button class="btn secondary" id="mVfStakeCancel">Отмена</button>
+  `);
+  document.getElementById('mVfStakeCancel').addEventListener('click', closeModal);
+  document.getElementById('mVfStakeConfirm').addEventListener('click', async ()=>{
+    const stake = parseInt(document.getElementById('mVfStake').value) || 0;
+    const errEl = document.getElementById('mVfStakeErr');
+    const res = await new Promise(resolve => socket.emit('vf:bet', {pick, stake}, resolve));
+    if(!res.ok){ errEl.textContent = res.error; return; }
+    me.chips = res.chips;
+    vfMyBetThisMatch = { matchNum: st.matchNum, pick, stake };
+    closeModal();
+    renderVfState();
+    await refreshVfMyBets();
+  });
+}
+document.getElementById('vfBtnHome').addEventListener('click', ()=> vfPlaceBet('home'));
+document.getElementById('vfBtnDraw').addEventListener('click', ()=> vfPlaceBet('draw'));
+document.getElementById('vfBtnAway').addEventListener('click', ()=> vfPlaceBet('away'));
+async function refreshVfMyBets(){
+  const el = document.getElementById('vfMyBetsList');
+  let data;
+  try{ data = await api('/api/vf/mybets', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
+  if(!data.bets.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Ставок пока нет.</div>'; return; }
+  const pickLabel = {home:'П1', draw:'Х', away:'П2'};
+  el.innerHTML = data.bets.map(b => {
+    const badge = b.status === 'won' ? `<span class="pill active">+${b.payout}</span>` : `<span class="pill banned">−${b.stake}</span>`;
+    return `<div class="open-room-row"><div>Матч #${b.match_num}<div class="meta">${pickLabel[b.pick]} · ставка ${b.stake} · кф. ${b.odds.toFixed(2)}</div></div>${badge}</div>`;
+  }).join('');
+}
+document.getElementById('drwVirtualFootball').addEventListener('click', ()=>{ closeDrawer(); enterVirtualFootball(); });
 
 /* ===================== TOPBAR ===================== */
 function renderTopbar(){
@@ -1334,70 +1491,6 @@ function renderOpenRooms(list){
 document.getElementById('refreshRoomsBtn').addEventListener('click', ()=> socket.emit('lobby:join'));
 
 /* ===================== СПОРТ (ИГРОК) ===================== */
-async function enterSport(){
-  showOnly(['topbar','sportView']);
-  renderTopbar();
-  await refreshSportMatches();
-  await refreshMyBets();
-}
-async function refreshSportMatches(){
-  const el = document.getElementById('sportMatchesList');
-  let data;
-  try{ data = await api('/api/sports/matches', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
-  const open = data.matches.filter(m => m.status === 'open');
-  if(!open.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px; margin-top:8px;">Открытых матчей сейчас нет.</div>'; return; }
-  el.innerHTML = open.map(m => `
-    <div class="open-room-row" style="flex-direction:column; align-items:stretch; gap:8px;">
-      <div>
-        <b>${m.title}</b>
-        ${m.competition ? `<div class="meta">${m.competition}</div>` : ''}
-      </div>
-      <div class="row2" style="gap:8px;">
-        <button class="btn small secondary" data-bet="${m.id}" data-pick="home" data-odds="${m.oddsHome}" style="flex:1;">П1 · ${m.oddsHome.toFixed(2)}</button>
-        ${m.oddsDraw ? `<button class="btn small secondary" data-bet="${m.id}" data-pick="draw" data-odds="${m.oddsDraw}" style="flex:1;">Х · ${m.oddsDraw.toFixed(2)}</button>` : ''}
-        <button class="btn small secondary" data-bet="${m.id}" data-pick="away" data-odds="${m.oddsAway}" style="flex:1;">П2 · ${m.oddsAway.toFixed(2)}</button>
-      </div>
-    </div>
-  `).join('');
-  el.querySelectorAll('[data-bet]').forEach(b=>{
-    b.addEventListener('click', ()=> promptSportBet(b.dataset.bet, b.dataset.pick, parseFloat(b.dataset.odds)));
-  });
-}
-function promptSportBet(matchId, pick, odds){
-  const pickLabel = {home:'П1', draw:'Ничья', away:'П2'}[pick];
-  showModal(`
-    <h4>Ставка: ${pickLabel} (кф. ${odds.toFixed(2)})</h4>
-    <label>Сумма ставки</label><input type="number" id="mStake" value="100" min="1" step="10">
-    <div class="err" id="mStakeErr"></div>
-    <button class="btn" id="mStakeConfirm">Поставить</button>
-    <button class="btn secondary" id="mStakeCancel">Отмена</button>
-  `);
-  document.getElementById('mStakeCancel').addEventListener('click', closeModal);
-  document.getElementById('mStakeConfirm').addEventListener('click', async ()=>{
-    const stake = parseInt(document.getElementById('mStake').value) || 0;
-    const errEl = document.getElementById('mStakeErr');
-    try{
-      const res = await api('/api/sports/bet', 'POST', {matchId: parseInt(matchId), pick, stake});
-      me.chips = res.chips;
-      closeModal();
-      await refreshSportMatches();
-      await refreshMyBets();
-    }catch(e){ errEl.textContent = e.message; }
-  });
-}
-async function refreshMyBets(){
-  const el = document.getElementById('sportMyBetsList');
-  let data;
-  try{ data = await api('/api/sports/mybets', 'GET'); }catch(e){ el.innerHTML = `<div class="err">${e.message}</div>`; return; }
-  if(!data.bets.length){ el.innerHTML = '<div style="color:var(--muted); font-size:12.5px;">Ставок пока нет.</div>'; return; }
-  const pickLabel = {home:'П1', draw:'Х', away:'П2'};
-  el.innerHTML = data.bets.map(b => {
-    const badge = b.status === 'pending' ? '<span class="pill" style="background:rgba(198,161,91,0.15); color:var(--gold);">ожидает</span>'
-      : b.status === 'won' ? `<span class="pill active">+${b.payout}</span>`
-      : `<span class="pill banned">−${b.stake}</span>`;
-    return `<div class="open-room-row"><div>${b.title}<div class="meta">${pickLabel[b.pick]} · ставка ${b.stake} · кф. ${b.odds.toFixed(2)}</div></div>${badge}</div>`;
-  }).join('');
-}
 
 
 /* ===================== БЫСТРЫЕ ИГРЫ: общий пикер ===================== */
@@ -1911,6 +2004,8 @@ async function refreshAdminTournaments(){
     });
   });
 }
+
+
 
 async function refreshRakeStats(){
   const el = document.getElementById('rakeStatRow');

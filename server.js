@@ -15,6 +15,7 @@ const slots = require('./slots');
 const mines = require('./mines');
 const crash = require('./crash');
 const tournamentLogic = require('./tournament');
+const vf = require('./virtualfootball');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-me-in-production';
 const PORT = process.env.PORT || 3000;
@@ -615,6 +616,80 @@ app.get('/api/crash/myrounds', authMiddleware, (req, res) => {
   res.json({ rounds: rows });
 });
 
+// ===================== ВИРТУАЛЬНЫЙ ФУТБОЛ =====================
+// Полностью автоматический бесконечный цикл — без какого-либо участия
+// администратора. Один и тот же матч виден ВСЕМ игрокам одновременно
+// (общее состояние, не персональное, в отличие от Mines/Crash).
+const VF_BETTING_MS = 40000; // 40 секунд на ставки
+const VF_PLAYING_MS = 12000; // 12 секунд "идёт матч"
+const VF_RESULT_MS = 8000;   // 8 секунд показываем результат перед следующим матчем
+
+let vfMatchNum = 0;
+let vfState = null; // { matchNum, home, away, odds, probs, phase, phaseEndsAt, result }
+let vfBets = new Map(); // username -> {pick, stake, odds, mode} — ставки текущего матча (по одной на игрока за раз)
+
+function vfPublicState() {
+  if (!vfState) return null;
+  return {
+    matchNum: vfState.matchNum, home: vfState.home, away: vfState.away,
+    odds: vfState.odds, phase: vfState.phase, phaseEndsAt: vfState.phaseEndsAt,
+    result: vfState.result || null
+  };
+}
+function vfBroadcast() {
+  io.to('vf').emit('vf:state', vfPublicState());
+}
+
+function vfStartNewMatch() {
+  vfMatchNum++;
+  const m = vf.generateMatch();
+  vfBets = new Map();
+  vfState = {
+    matchNum: vfMatchNum, home: m.home, away: m.away, odds: m.odds, probs: m.probs,
+    phase: 'betting', phaseEndsAt: Date.now() + VF_BETTING_MS, result: null
+  };
+  vfBroadcast();
+  setTimeout(vfLockMatch, VF_BETTING_MS);
+}
+
+function vfLockMatch() {
+  if (!vfState) return;
+  vfState.phase = 'playing';
+  vfState.phaseEndsAt = Date.now() + VF_PLAYING_MS;
+  vfBroadcast();
+  setTimeout(vfResolveMatch, VF_PLAYING_MS);
+}
+
+function vfResolveMatch() {
+  if (!vfState) return;
+  const result = vf.drawResult(vfState.probs);
+  vfState.result = result;
+  vfState.phase = 'result';
+  vfState.phaseEndsAt = Date.now() + VF_RESULT_MS;
+
+  vfBets.forEach((bet, username) => {
+    const won = bet.pick === result;
+    const payout = won ? Math.round(bet.stake * bet.odds) : 0;
+    if (won) {
+      const wf = bet.mode === 'real' ? 'chips_real' : 'chips_bonus';
+      db.prepare(`UPDATE users SET ${wf} = ${wf} + ? WHERE username = ? COLLATE NOCASE`).run(payout, username);
+    }
+    db.prepare('INSERT INTO vf_bets (match_num, username, pick, stake, odds, status, payout, mode, created_at) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(vfState.matchNum, username, bet.pick, bet.stake, bet.odds, won ? 'won' : 'lost', payout, bet.mode, Date.now());
+    if (won) emitToUser(username, 'vf:won', { matchNum: vfState.matchNum, payout });
+  });
+
+  vfBroadcast();
+  setTimeout(vfStartNewMatch, VF_RESULT_MS);
+}
+
+vfStartNewMatch(); // запускаем бесконечный цикл сразу при старте сервера
+
+app.get('/api/vf/mybets', authMiddleware, (req, res) => {
+  const rows = db.prepare('SELECT * FROM vf_bets WHERE username = ? COLLATE NOCASE ORDER BY id DESC LIMIT 15').all(req.dbUser.username);
+  res.json({ bets: rows });
+});
+
 // ===================== ТУРНИРЫ =====================
 // Создавать турниры может только администратор. Регистрация игроков и сам
 // список турниров хранятся в базе (не только в памяти) — регистрация может
@@ -1139,6 +1214,32 @@ io.on('connection', (socket) => {
   socket.on('lobby:join', () => {
     socket.join('lobby');
     broadcastLobby();
+  });
+
+  socket.on('vf:join', (cb) => {
+    cb = typeof cb === 'function' ? cb : () => {};
+    socket.join('vf');
+    cb({ ok: true, state: vfPublicState() });
+  });
+
+  socket.on('vf:bet', ({ pick, stake }, cb) => {
+    cb = typeof cb === 'function' ? cb : () => {};
+    if (!vfState || vfState.phase !== 'betting') return cb({ ok: false, error: 'Приём ставок на этот матч уже закрыт.' });
+    if (!['home', 'draw', 'away'].includes(pick)) return cb({ ok: false, error: 'Некорректный исход.' });
+    const st = parseInt(stake);
+    if (!Number.isFinite(st) || st <= 0) return cb({ ok: false, error: 'Некорректная ставка.' });
+    if (vfBets.has(socket.username)) return cb({ ok: false, error: 'На этот матч вы уже поставили.' });
+
+    const user = getUserByUsername(socket.username);
+    if (!user) return cb({ ok: false, error: 'Пользователь не найден.' });
+    const wf = activeWalletField(user);
+    const balance = activeBalance(user);
+    if (st > balance) return cb({ ok: false, error: `Недостаточно фишек. На балансе: ${balance}.` });
+
+    db.prepare(`UPDATE users SET ${wf} = ${wf} - ? WHERE username = ?`).run(st, user.username);
+    vfBets.set(socket.username, { pick, stake: st, odds: vfState.odds[pick], mode: user.active_mode });
+    const updated = getUserByUsername(user.username);
+    cb({ ok: true, chips: activeBalance(updated) });
   });
 
   socket.on('table:create', ({ betUnit, maxSeats }, cb) => {
